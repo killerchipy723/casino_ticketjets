@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ruleta Casino - Boliche</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Librería de Confeti para la explosión de papeles -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
+    <style>
+        body {
+            background: #0b0b12;
+            color: #fff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow-x: hidden;
+        }
+        .main-container {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 15px;
+        }
+        .casino-stage {
+            position: relative;
+            width: 100%;
+            max-width: 380px;
+            margin: 0 auto;
+        }
+        .joker-character {
+            font-size: 3.5rem;
+            text-align: center;
+            margin-bottom: -15px;
+            z-index: 10;
+            position: relative;
+            filter: drop-shadow(0 0 10px #7928ca);
+        }
+        .joker-spinning {
+            animation: jokerDance 0.5s infinite alternate;
+        }
+        @keyframes jokerDance {
+            from { transform: translateY(0) rotate(-5deg); }
+            to { transform: translateY(-10px) rotate(5deg); }
+        }
+        .puntero-ruleta {
+            position: absolute;
+            top: 55px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 18px solid transparent;
+            border-right: 18px solid transparent;
+            border-top: 30px solid #ff0055;
+            z-index: 20;
+            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.8));
+        }
+        .ruleta-container {
+            position: relative;
+            width: 340px;
+            height: 340px;
+            margin: 0 auto;
+            border-radius: 50%;
+            padding: 8px;
+            background: linear-gradient(135deg, #f39c12, #e74c3c, #8e44ad);
+            box-shadow: 0 0 30px rgba(255, 0, 128, 0.5);
+        }
+        canvas {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+        }
+        .btn-casino {
+            background: linear-gradient(45deg, #ff007f, #7928ca);
+            border: none;
+            font-size: 1.2rem;
+            padding: 14px 30px;
+            font-weight: bold;
+            border-radius: 50px;
+            box-shadow: 0 0 20px rgba(255,0,127,0.6);
+            letter-spacing: 1px;
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+
+<div class="main-container text-center">
+
+    <h2 class="fw-bold text-uppercase mb-1" style="color: #ff007f; text-shadow: 0 0 10px #ff007f;">
+        🎰 RULETA BOLICHE 🎰
+    </h2>
+    <p class="text-muted small mb-3">¡Girá la ruleta y descubrí tu premio al instante!</p>
+
+    <!-- CONTENEDOR PRINCIPAL DE LA RULETA (VISIBLE DE ENTRADA) -->
+    <div id="juego-section" class="w-100">
+        <div class="casino-stage">
+            <div id="joker" class="joker-character">🃏</div>
+            <div class="puntero-ruleta"></div>
+            <div class="ruleta-container">
+                <canvas id="canvasRuleta" width="500" height="500"></canvas>
+            </div>
+        </div>
+        <div class="mt-4">
+            <button id="btnGirar" class="btn btn-casino" onclick="iniciarGiro()">¡GIRAR RULETA AHORA!</button>
+        </div>
+    </div>
+
+    <!-- SECCIÓN DE RECLAMO (OCULTA HASTA GANAR) -->
+    <div id="premio-section" class="d-none card bg-dark border-secondary p-4 w-100 mt-3" style="max-width: 380px;">
+        <h3 class="text-success fw-bold">🎉 ¡FELICIDADES! 🎉</h3>
+        <p class="text-muted small">Ganaste el siguiente premio:</p>
+        <h4 id="textoPremioGanado" class="text-warning fw-bold mb-3"></h4>
+        
+        <hr class="border-secondary">
+
+        <p class="small text-white">Completá tus datos para registrar tu premio y reclamarlo por WhatsApp:</p>
+        <div class="mb-3 text-start">
+            <label class="form-label small text-muted">Tu Nombre</label>
+            <input type="text" id="nombre" class="form-control bg-black text-white border-secondary" placeholder="Ej: Lucas Gómez">
+        </div>
+        <div class="mb-3 text-start">
+            <label class="form-label small text-muted">Tu Teléfono (WhatsApp)</label>
+            <input type="tel" id="telefono" class="form-control bg-black text-white border-secondary" placeholder="Ej: 3874123456">
+        </div>
+        <button class="btn btn-casino w-100" onclick="reclamarPremio()">RECLAMAR PREMIO</button>
+    </div>
+
+</div>
+
+<script>
+    const premios = JSON.parse('{{ premios | map(attribute="titulo") | list | tojson | safe }}');
+    let canvas = document.getElementById('canvasRuleta');
+    let ctx = canvas.getContext('2d');
+    
+    let anguloActual = 0;
+    let girando = false;
+    let premioGanadoTexto = '';
+
+    const colores = ['#16a085', '#2980b9', '#8e44ad', '#2c3e50', '#f39c12', '#d35400', '#c0392b', '#27ae60'];
+
+    window.onload = function() {
+        // Validar si el dispositivo ya jugó en las últimas 24 horas
+        const ultimaJugada = localStorage.getItem('ruleta_fecha_jugada');
+        if (ultimaJugada) {
+            const ahora = new Date().getTime();
+            const diferenciaHoras = (ahora - parseInt(ultimaJugada)) / (1000 * 60 * 60);
+            
+            if (diferenciaHoras < 24) {
+                document.getElementById('juego-section').innerHTML = `
+                    <div class="card bg-dark border-secondary p-4 text-center">
+                        <h3 class="text-warning">⏳ ¡Ya participaste!</h3>
+                        <p class="text-muted">Este dispositivo ya giró la ruleta recientemente. ¡Te esperamos en el boliche para canjear tu premio o volver a intentar mañana!</p>
+                    </div>
+                `;
+                return;
+            }
+        }
+        dibujarRuleta();
+    };
+
+    function dibujarRuleta() {
+        const totalPorciones = premios.length;
+        const anguloPorcion = (2 * Math.PI) / totalPorciones;
+        const centroX = canvas.width / 2;
+        const centroY = canvas.height / 2;
+        const radio = canvas.width / 2 - 10;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        for (let i = 0; i < totalPorciones; i++) {
+            const anguloInicio = anguloActual + (i * anguloPorcion);
+            const anguloFin = anguloInicio + anguloPorcion;
+
+            ctx.beginPath();
+            ctx.moveTo(centroX, centroY);
+            ctx.arc(centroX, centroY, radio, anguloInicio, anguloFin);
+            ctx.closePath();
+            ctx.fillStyle = colores[i % colores.length];
+            ctx.fill();
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = '#0b0b12';
+            ctx.stroke();
+
+            ctx.save();
+            ctx.translate(centroX, centroY);
+            ctx.rotate(anguloInicio + anguloPorcion / 2);
+            ctx.textAlign = "right";
+            ctx.fillStyle = "#ffffff";
+            ctx.font = "bold 18px Segoe UI";
+            
+            let texto = premios[i];
+            if (texto.length > 20) texto = texto.substring(0, 18) + '...';
+            
+            ctx.fillText(texto, radio - 30, 6);
+            ctx.restore();
+        }
+
+        ctx.beginPath();
+        ctx.arc(centroX, centroY, 40, 0, 2 * Math.PI);
+        ctx.fillStyle = '#0b0b12';
+        ctx.fill();
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = '#ff007f';
+        ctx.stroke();
+    }
+
+    function iniciarGiro() {
+        if (girando) return;
+        girando = true;
+
+        const btnGirar = document.getElementById('btnGirar');
+        const joker = document.getElementById('joker');
+        
+        btnGirar.disabled = true;
+        joker.classList.add('joker-spinning');
+
+        fetch('/girar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                premioGanadoTexto = data.premio;
+                const indiceGanador = premios.indexOf(data.premio);
+                animarGiroRuleta(indiceGanador >= 0 ? indiceGanador : 0);
+            } else {
+                alert(data.error || 'Ocurrió un error.');
+                btnGirar.disabled = false;
+                joker.classList.remove('joker-spinning');
+                girando = false;
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert('Error al conectar con el servidor.');
+            btnGirar.disabled = false;
+            joker.classList.remove('joker-spinning');
+            girando = false;
+        });
+    }
+
+    function animarGiroRuleta(indiceGanador) {
+        const totalPorciones = premios.length;
+        const anguloPorcion = (2 * Math.PI) / totalPorciones;
+        const anguloObjetivoPorcion = (1.5 * Math.PI) - (indiceGanador * anguloPorcion) - (anguloPorcion / 2);
+        
+        const girosExtra = 6 * 2 * Math.PI;
+        const anguloFinal = anguloActual + girosExtra + (anguloObjetivoPorcion - (anguloActual % (2 * Math.PI)));
+
+        const duracion = 5000;
+        const inicio = performance.now();
+
+        function frame(tiempoActual) {
+            const transcurrido = tiempoActual - inicio;
+            const progreso = Math.min(transcurrido / duracion, 1);
+            const easeOut = 1 - Math.pow(1 - progreso, 3);
+            
+            anguloActual = anguloActual + (anguloFinal - anguloActual) * (easeOut * 0.1);
+            dibujarRuleta();
+
+            if (progreso < 1) {
+                requestAnimationFrame(frame);
+            } else {
+                document.getElementById('joker').classList.remove('joker-spinning');
+                
+                // 1. Guardar en localStorage que este dispositivo ya jugó
+                localStorage.setItem('ruleta_fecha_jugada', new Date().getTime().toString());
+
+                // 2. Lanzar la bomba de papeles (Confetti)
+                lanzarConfeti();
+
+                // 3. Mostrar pantalla de reclamo de premio
+                setTimeout(() => {
+                    document.getElementById('juego-section').classList.add('d-none');
+                    document.getElementById('textoPremioGanado').innerText = premioGanadoTexto;
+                    document.getElementById('premio-section').classList.remove('d-none');
+                }, 800);
+            }
+        }
+        requestAnimationFrame(frame);
+    }
+
+    function lanzarConfeti() {
+        confetti({
+            particleCount: 120,
+            spread: 80,
+            origin: { y: 0.6 }
+        });
+    }
+
+    function reclamarPremio() {
+        const nombre = document.getElementById('nombre').value.trim();
+        const telefono = document.getElementById('telefono').value.trim();
+
+        if (!nombre || !telefono) {
+            alert('Por favor completá tu nombre y teléfono para reclamar.');
+            return;
+        }
+
+        fetch('/guardar_ganador', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nombre: nombre, telefono: telefono })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                window.location.href = '/reclamar';
+            } else {
+                alert(data.error || 'Error al guardar el premio.');
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert('Error de conexión.');
+        });
+    }
+</script>
+
+</body>
+</html>
