@@ -1,74 +1,226 @@
-    body {
-            background: #0b0b12;
-            color: #fff;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            overflow-x: hidden;
-        }
-        .main-container {
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 15px;
-        }
-        .casino-stage {
-            position: relative;
-            width: 100%;
-            max-width: 380px;
-            margin: 0 auto;
-        }
-        .joker-character {
-            font-size: 3.5rem;
-            text-align: center;
-            margin-bottom: -15px;
-            z-index: 10;
-            position: relative;
-            filter: drop-shadow(0 0 10px #7928ca);
-        }
-        .joker-spinning {
-            animation: jokerDance 0.5s infinite alternate;
-        }
-        @keyframes jokerDance {
-            from { transform: translateY(0) rotate(-5deg); }
-            to { transform: translateY(-10px) rotate(5deg); }
-        }
-        .puntero-ruleta {
-            position: absolute;
-            top: 55px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 0;
-            height: 0;
-            border-left: 18px solid transparent;
-            border-right: 18px solid transparent;
-            border-top: 30px solid #ff0055;
-            z-index: 20;
-            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.8));
-        }
-        .ruleta-container {
-            position: relative;
-            width: 340px;
-            height: 340px;
-            margin: 0 auto;
-            border-radius: 50%;
-            padding: 8px;
-            background: linear-gradient(135deg, #f39c12, #e74c3c, #8e44ad);
-            box-shadow: 0 0 30px rgba(255, 0, 128, 0.5);
-        }
-        canvas {
-            width: 100%;
-            height: 100%;
-            border-radius: 50%;
-        }
-        .btn-casino {
-            background: linear-gradient(45deg, #ff007f, #7928ca);
-            border: none;
-            font-size: 1.2rem;
-            padding: 14px 30px;
-            font-weight: bold;
-            border-radius: 50px;
-            box-shadow: 0 0 20px rgba(255,0,127,0.6);
-            letter-spacing: 1px;
-            color: #fff;
-        }
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&family=Playfair+Display:ital@1&display=swap');
+
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    background: #08080c;
+    color: #fff;
+    font-family: 'Montserrat', sans-serif;
+    overflow-x: hidden;
+}
+
+body {
+    background: #08080c url('https://images.unsplash.com/photo-1511193311914-0346f16efe90?q=80&w=1000&auto=format&fit=crop') no-repeat center center fixed;
+    background-size: cover;
+}
+
+body::before {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(8, 8, 12, 0.90);
+    z-index: 0;
+}
+
+.main-container {
+    position: relative;
+    z-index: 1;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 10px 15px 30px 15px;
+    max-width: 420px;
+    margin: 0 auto;
+}
+
+/* LOGO ANANA CLUB COMPACTO */
+.logo-container {
+    text-align: center;
+    margin-top: 0;
+    margin-bottom: 0;
+    width: 100%;
+}
+
+.anana-logo-wrapper {
+    position: relative;
+    display: inline-block;
+    padding-top: 10px;
+}
+
+.anana-leaves {
+    position: absolute;
+    top: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 36px;
+    height: 24px;
+    z-index: 2;
+    filter: drop-shadow(0 0 6px rgba(212, 175, 55, 0.8));
+}
+
+.anana-text-logo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    font-weight: 900;
+    font-size: 1.7rem;
+    color: #ffffff;
+    line-height: 1;
+}
+
+.letter-v {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 1.9rem;
+    color: #ffffff;
+    transform: scaleY(0.9);
+}
+
+.letter-n {
+    font-size: 1.6rem;
+    letter-spacing: -1px;
+}
+
+.letter-a-pineapple {
+    position: relative;
+    width: 26px;
+    height: 32px;
+    display: inline-block;
+}
+
+.pineapple-body {
+    width: 100%;
+    height: 100%;
+    filter: drop-shadow(0 0 5px rgba(212, 175, 55, 0.6));
+}
+
+.sub-title {
+    color: #d4af37;
+    font-weight: 800;
+    letter-spacing: 3px;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    margin-top: 2px;
+}
+
+.slogan-phrase {
+    font-family: 'Playfair Display', serif;
+    font-style: italic;
+    color: #cccccc;
+    font-size: 0.7rem;
+    margin-bottom: 0;
+}
+
+/* ESCENARIO RULETA COMPACTO Y SUBIDO */
+#juego-section {
+    margin-top: -5px;
+    width: 100%;
+}
+
+.casino-stage {
+    position: relative;
+    width: 100%;
+    max-width: 260px;
+    margin: 0 auto;
+}
+
+/* JOKER 3D PROFESIONAL CON FONDO TRANSPARENTE */
+.joker-character {
+    width: 80px;
+    height: 75px;
+    margin: 0 auto -20px auto;
+    z-index: 10;
+    position: relative;
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.joker-3d-logo {
+    width: 100%;
+    height: 100%;
+    filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.9));
+    animation: floatJoker 3s ease-in-out infinite;
+}
+
+@keyframes floatJoker {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-5px) scale(1.04); }
+}
+
+.joker-spinning .joker-3d-logo {
+    animation: jokerSpinFast 0.3s linear infinite;
+}
+
+@keyframes jokerSpinFast {
+    0% { transform: rotate(0deg) scale(1.1); }
+    25% { transform: rotate(-8deg) scale(1.1); }
+    75% { transform: rotate(8deg) scale(1.1); }
+    100% { transform: rotate(0deg) scale(1.1); }
+}
+
+.puntero-ruleta {
+    position: absolute;
+    top: 25px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 12px solid transparent;
+    border-right: 12px solid transparent;
+    border-top: 20px solid #d4af37;
+    z-index: 20;
+    filter: drop-shadow(0 3px 6px rgba(0,0,0,0.9));
+}
+
+.ruleta-container {
+    position: relative;
+    width: 250px;
+    height: 250px;
+    margin: 0 auto;
+    border-radius: 50%;
+    padding: 6px;
+    background: linear-gradient(145deg, #d4af37, #8a6d1c, #111);
+    box-shadow: 0 0 25px rgba(212, 175, 55, 0.4), inset 0 0 10px #000;
+}
+
+canvas {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+}
+
+.btn-gold {
+    background: linear-gradient(45deg, #d4af37, #f9e076, #b38728);
+    border: none;
+    color: #000;
+    font-weight: 900;
+    font-size: 0.95rem;
+    padding: 12px 20px;
+    border-radius: 50px;
+    letter-spacing: 1px;
+    box-shadow: 0 0 15px rgba(212, 175, 55, 0.5);
+    text-transform: uppercase;
+    margin-top: 10px;
+}
+
+.btn-gold:active {
+    transform: scale(0.97);
+}
+
+.card-casino {
+    background: rgba(18, 18, 26, 0.95);
+    border: 1px solid #d4af37;
+    border-radius: 12px;
+    box-shadow: 0 0 20px rgba(0,0,0,0.9);
+}
+
+/* CENTRADO Y MARGEN DE PANTALLA 'YA PARTICIPASTE' */
+#juego-section .card-casino {
+    margin-top: 35px;
+    box-shadow: 0 0 25px rgba(212, 175, 55, 0.2);
+}
