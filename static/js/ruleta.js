@@ -52,7 +52,7 @@ window.onload = function() {
             document.getElementById('juego-section').innerHTML = `
                 <div class="card card-casino p-3 text-center">
                     <h5 class="text-warning mb-2">⏳ ¡Ya participaste hoy!</h5>
-                    <p class="text-muted small mb-0">Este celular ya giró la ruleta. Te esperamos en ANANA CLUB para canjear tu premio o volver a intentar mañana.</p>
+                    <p class="text-light small mb-0">Este Dispositivo ya giró la ruleta. Te esperamos en ANANA CLUB para canjear tu premio o volver a intentar mañana.</p>
                 </div>
             `;
             return;
@@ -172,21 +172,52 @@ function animarGiroRuleta(indiceGanador) {
         if (progreso < 1) {
             requestAnimationFrame(frame);
         } else {
-            document.getElementById('joker').classList.remove('joker-spinning');
-            localStorage.setItem('ruleta_fecha_jugada', new Date().getTime().toString());
-            
-            reproducirSonidoGanador();
-            confetti({
-                particleCount: 100,
-                spread: 70,
-                origin: { y: 0.6 }
-            });
+            const joker = document.getElementById('joker');
+            const btnGirar = document.getElementById('btnGirar');
+            joker.classList.remove('joker-spinning');
 
-            setTimeout(() => {
-                document.getElementById('juego-section').classList.add('d-none');
-                document.getElementById('textoPremioGanado').innerText = premioGanadoTexto;
-                document.getElementById('premio-section').classList.remove('d-none');
-            }, 600);
+            // --- EVALUACIÓN DE RESULTADOS ESPECIALES ---
+            const resultadoLower = premioGanadoTexto.toLowerCase().trim();
+
+            if (resultadoLower.includes("vale otro tiro") || resultadoLower.includes("otro tiro")) {
+                // CASO 1: VALE OTRO TIRO
+                // No guardamos en localStorage, notificamos y habilitamos el botón de nuevo
+                setTimeout(() => {
+                    alert('🎰 ¡VALE OTRO TIRO! Tenés una oportunidad más para girar la ruleta.');
+                    btnGirar.disabled = false;
+                    girando = false;
+                }, 500);
+
+            } else if (resultadoLower.includes("seguí participando") || resultadoLower.includes("segui participando")) {
+                // CASO 2: SEGUÍ PARTICIPANDO
+                // Bloqueamos por 24hs pero mostramos aviso sin formulario
+                localStorage.setItem('ruleta_fecha_jugada', new Date().getTime().toString());
+                
+                setTimeout(() => {
+                    document.getElementById('juego-section').innerHTML = `
+                        <div class="card card-casino p-4 text-center">
+                            <h4 class="text-warning mb-2">😅 ¡Seguí participando!</h4>
+                            <p class="text-light small mb-0 fs-6">Esta vez no hubo suerte, ¡pero te esperamos hoy en ANANA CLUB para disfrutar la noche! Mañana podés volver a intentar.</p>
+                        </div>
+                    `;
+                }, 600);
+
+            } else {
+                // CASO 3: PREMIO REAL
+                localStorage.setItem('ruleta_fecha_jugada', new Date().getTime().toString());
+                reproducirSonidoGanador();
+                confetti({
+                    particleCount: 100,
+                    spread: 70,
+                    origin: { y: 0.6 }
+                });
+
+                setTimeout(() => {
+                    document.getElementById('juego-section').classList.add('d-none');
+                    document.getElementById('textoPremioGanado').innerText = premioGanadoTexto;
+                    document.getElementById('premio-section').classList.remove('d-none');
+                }, 600);
+            }
         }
     }
     requestAnimationFrame(frame);
