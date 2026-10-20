@@ -8,11 +8,19 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'clave_secreta_super_segura_boliche_2026'
 
 # --- CONFIGURACIÓN DE CONEXIÓN A MYSQL (WORKBENCH) ---
-DB_USER = 'c2710325_killer'            # Tu usuario de MySQL Workbench
-DB_PASSWORD = 'SistemaIES6021'    # Tu contraseña de MySQL Workbench
-DB_HOST = '200.58.106.156'       # Servidor (127.0.0.1)
+
+#DB_USER = 'c2710325_killer'            # Tu usuario de MySQL Workbench
+#DB_PASSWORD = 'SistemaIES6021'    # Tu contraseña de MySQL Workbench
+#DB_HOST = '200.58.106.156'       # Servidor (127.0.0.1)
+#DB_PORT = '3306'            # Puerto por defecto de MySQL
+#DB_NAME = 'c2710325_base'  # Nombre de la base de datos
+
+DB_USER = 'root'            # Tu usuario de MySQL Workbench
+DB_PASSWORD = 'admin123'    # Tu contraseña de MySQL Workbench
+DB_HOST = 'localhost'       # Servidor (127.0.0.1)
 DB_PORT = '3306'            # Puerto por defecto de MySQL
-DB_NAME = 'c2710325_base'  # Nombre de la base de datos
+DB_NAME = 'ruleta_boliche'  # Nombre de la base de datos
+
 
 app.config['SQLALCHEMY_DATABASE_URI'] = f'mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}?charset=utf8mb4'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
