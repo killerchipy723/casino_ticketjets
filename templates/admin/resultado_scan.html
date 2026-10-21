@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Validación de Ticket - ANANA CLUB</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { 
+            background: #08080c; 
+            color: #fff; 
+            font-family: sans-serif; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            min-height: 100vh; 
+            padding: 15px; 
+        }
+        .card-val { 
+            background: #12121a; 
+            border-radius: 16px; 
+            width: 100%; 
+            max-width: 400px; 
+            padding: 25px; 
+            text-align: center; 
+        }
+        .border-valido {
+            border: 2px solid #28a745 !important;
+        }
+        .border-invalido {
+            border: 2px solid #dc3545 !important;
+        }
+        .text-gold { 
+            color: #d4af37; 
+        }
+    </style>
+</head>
+<body>
+
+<div class="card-val {% if ganador and not ganador.reclamado %}border-valido{% else %}border-invalido{% endif %}">
+    
+    {% if error %}
+        <h3 class="text-danger font-bold mb-3">⚠️ ERROR</h3>
+        <p class="text-light">{{ error }}</p>
+    {% elif ganador %}
+        
+        {% if ganador.reclamado %}
+            <div class="alert alert-danger py-3 mb-3">
+                <h4 class="fw-bold mb-0">❌ TICKET YA UTILIZADO</h4>
+                <small>Este beneficio ya fue canjeado en la barra/puerta.</small>
+            </div>
+        {% else %}
+            <div class="alert alert-success py-3 mb-3">
+                <h4 class="fw-bold mb-0">✅ TICKET VÁLIDO</h4>
+                <small>Listo para canjear en este momento.</small>
+            </div>
+        {% endif %}
+
+        <h5 class="text-gold fw-bold mb-1">{{ ganador.premio }}</h5>
+        <p class="text-white mb-1"><strong>Titular:</strong> {{ ganador.nombre }}</p>
+        <p class="text-muted small mb-3">Código: {{ ganador.codigo_ticket }}</p>
+
+        {% if not ganador.reclamado %}
+            <form method="POST">
+                <button type="submit" class="btn btn-success btn-lg w-100 py-3 fw-bold">
+                    CANJEAR E INHABILITAR TICKET
+                </button>
+            </form>
+        {% endif %}
+
+    {% endif %}
+
+    <div class="mt-4">
+        <a href="/admin" class="btn btn-outline-light btn-sm w-100">Volver al Dashboard Admin</a>
+    </div>
+</div>
+
+</body>
+</html>

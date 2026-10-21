@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acceso Admin - ANANA CLUB</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background-color: #08080c;
+            color: #fff;
+            font-family: 'Montserrat', sans-serif;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .login-card {
+            background: rgba(18, 18, 26, 0.95);
+            border: 1px solid #d4af37;
+            border-radius: 16px;
+            box-shadow: 0 0 30px rgba(212, 175, 55, 0.25);
+            width: 100%;
+            max-width: 380px;
+            padding: 30px;
+        }
+        .text-gold { color: #d4af37 !important; }
+        .btn-gold {
+            background: linear-gradient(45deg, #d4af37, #f9e076, #b38728);
+            border: none;
+            color: #000;
+            font-weight: 900;
+            text-transform: uppercase;
+            padding: 12px;
+            border-radius: 50px;
+            box-shadow: 0 0 15px rgba(212, 175, 55, 0.4);
+        }
+        .btn-gold:active { transform: scale(0.98); }
+        .form-control {
+            background-color: #08080c !important;
+            color: #fff !important;
+            border: 1px solid #d4af37 !important;
+            border-radius: 8px;
+        }
+        .form-control:focus {
+            box-shadow: 0 0 10px rgba(212, 175, 55, 0.5);
+        }
+    </style>
+</head>
+<body>
+
+<div class="login-card text-center">
+    <h3 class="text-gold fw-bold mb-1">🍍 ANANA CLUB</h3>
+    <p class="text-light small mb-4" style="font-size: 0.8rem; letter-spacing: 2px;">PANEL DE ADMINISTRACIÓN</p>
+
+    <!-- Alertas de error si las credenciales fallan -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-danger py-2 small mb-3" role="alert">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <form method="POST" action="/admin/login">
+        <div class="mb-3 text-start">
+            <label class="form-label small text-light">Usuario</label>
+            <input type="text" name="usuario" class="form-control" placeholder="admin" required autofocus>
+        </div>
+        <div class="mb-4 text-start">
+            <label class="form-label small text-light">Contraseña</label>
+            <input type="password" name="password" class="form-control" placeholder="••••••" required>
+        </div>
+        <button type="submit" class="btn btn-gold w-100">Ingresar al Sistema</button>
+    </form>
+    
+    <div class="mt-4">
+        <a href="/" class="text-muted small text-decoration-none">← Volver a la ruleta pública</a>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

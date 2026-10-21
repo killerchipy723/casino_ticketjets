@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Escáner QR - ANANA CLUB</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&display=swap" rel="stylesheet">
+    <!-- Librería JavaScript para lectura de QR por cámara -->
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <style>
+        body {
+            background-color: #08080c;
+            color: #fff;
+            font-family: 'Montserrat', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 20px;
+        }
+        .card-casino {
+            background: #12121a;
+            border: 1px solid #d4af37;
+            border-radius: 16px;
+            box-shadow: 0 0 25px rgba(212, 175, 55, 0.25);
+            padding: 20px;
+            text-align: center;
+        }
+        .text-gold { color: #d4af37 !important; }
+        #reader {
+            width: 100%;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 2px solid #d4af37;
+            background: #000;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container py-2" style="max-width: 450px;">
+    <!-- Encabezado -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="text-gold fw-bold mb-0">🍍 ANANA SCAN</h4>
+        <a href="/admin" class="btn btn-outline-light btn-sm">Panel Admin</a>
+    </div>
+
+    <!-- Contenedor del Escáner -->
+    <div class="card-casino mb-4">
+        <h5 class="text-gold mb-2">Escanear Ticket VIP</h5>
+        <p class="text-muted small mb-3">Apuntá la cámara al código QR del cliente para verificar y canjear el beneficio.</p>
+        
+        <!-- Visor de la cámara -->
+        <div id="reader"></div>
+    </div>
+
+    <!-- Formulario para ingresar el código manualmente si falla la cámara -->
+    <div class="card-casino">
+        <p class="text-light small mb-2">¿Problemas con la cámara?</p>
+        <form onsubmit="validarManual(event)" class="d-flex gap-2">
+            <input type="text" id="codigoManual" class="form-control bg-dark text-white border-secondary" placeholder="Ej: ANANA-A1B2C3D4" required>
+            <button type="submit" class="btn btn-warning fw-bold">Validar</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    // Función cuando detecta un código QR
+    function onScanSuccess(decodedText, decodedResult) {
+        // Detiene la cámara temporalmente
+        html5QrcodeScanner.clear();
+        
+        // Si el QR tiene la URL completa, redirige a ella; si tiene solo el código, arma la URL
+        if (decodedText.startsWith("http://") || decodedText.startsWith("https://")) {
+            window.location.href = decodedText;
+        } else {
+            window.location.href = "/admin/validar/" + decodedText;
+        }
+    }
+
+    // Inicializar el lector de la cámara trasera
+    let html5QrcodeScanner = new Html5QrcodeScanner(
+        "reader",
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        /* verbose= */ false
+    );
+    html5QrcodeScanner.render(onScanSuccess);
+
+    // Validación manual de código
+    function validarManual(e) {
+        e.preventDefault();
+        const codigo = document.getElementById('codigoManual').value.trim();
+        if (codigo) {
+            window.location.href = "/admin/validar/" + codigo;
+        }
+    }
+</script>
+
+</body>
+</html>
