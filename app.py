@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'clave_secreta_super_segura_boliche_2026'
+app.config['TEMPLATES_AUTO_RELOAD'] = True  # <--- Esto evita que el servidor guarde caché de los HTML
 
 # --- CONFIGURACIÓN DE CONEXIÓN A MYSQL (WORKBENCH) ---
 DB_USER = 'c2710325_killer'            

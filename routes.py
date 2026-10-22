@@ -108,7 +108,7 @@ def registrar_rutas(app):
         if not datos:
             return redirect(url_for('index'))
 
-        num_whatsapp = "5493876502243" # Reemplazar por tu número
+        num_whatsapp = "5493876552273" # Reemplazar por tu número
         mensaje = f"¡Hola! Gané en ANANA CLUB 🎉\n🎁 Premio: {datos['premio']}\n👤 Nombre: {datos['nombre']}\n🎫 Ticket: {datos['codigo_ticket']}"
         link_whatsapp = f"https://wa.me/{num_whatsapp}?text={urllib.parse.quote(mensaje)}"
 
