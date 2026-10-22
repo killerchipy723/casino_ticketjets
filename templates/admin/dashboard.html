@@ -18,7 +18,6 @@
 
 <div class="container py-4">
     
-    
 <!-- BARRA SUPERIOR RESPONSIVE -->
 <div class="d-flex flex-column flex-sm-row justify-content-between align-items-center gap-3 mb-4 card-casino p-3">
     <!-- TÍTULO PRINCIPAL -->
@@ -106,7 +105,8 @@
             <table class="table table-dark table-striped table-sm align-middle mb-0">
                 <thead>
                     <tr>
-                        <th>Nombre / Tel</th>
+                        <th>Nombre</th>
+                        <th>Teléfono</th>
                         <th>Premio</th>
                         <th>Ticket / PDF</th>
                         <th>Estado</th>
@@ -115,7 +115,12 @@
                 <tbody>
                     {% for g in ganadores %}
                     <tr>
-                        <td><strong>{{ g.nombre }}</strong><br><small class="text-muted">{{ g.telefono }}</small></td>
+                        <td><strong>{{ g.nombre }}</strong></td>
+                        <td>
+                            <a href="https://wa.me/{{ g.telefono }}" target="_blank" class="text-info text-decoration-none fw-bold">
+                                📞 {{ g.telefono }}
+                            </a>
+                        </td>
                         <td>{{ g.premio }}</td>
                         <td>
                             <code>{{ g.codigo_ticket }}</code><br>
@@ -128,7 +133,7 @@
                         </td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="4" class="text-center text-muted">Aún no hay ganadores registrados.</td></tr>
+                    <tr><td colspan="5" class="text-center text-muted">Aún no hay ganadores registrados.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>

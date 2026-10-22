@@ -19,7 +19,7 @@ def registrar_rutas(app):
         if request.method == 'POST':
             usuario = request.form.get('usuario')
             password = request.form.get('password')
-            if usuario == 'admin' and password == '123456':
+            if usuario.strip().lower() == 'admin' and password == '123456':
                 session['admin_logged_in'] = True
                 return redirect(url_for('admin_dashboard'))
             else:
