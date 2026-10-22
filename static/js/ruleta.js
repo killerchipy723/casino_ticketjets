@@ -44,13 +44,15 @@ window.onload = function() {
     const ultimaJugada = localStorage.getItem('ruleta_fecha_jugada');
     if (ultimaJugada) {
         const ahora = new Date().getTime();
-        const diferenciaHoras = (ahora - parseInt(ultimaJugada)) / (1000 * 60 * 60);
+        const treintaMinutosMs = 30 * 60 * 1000;
+        const tiempoTranscurrido = ahora - parseInt(ultimaJugada);
         
-        if (diferenciaHoras < 24) {
+        if (tiempoTranscurrido < treintaMinutosMs) {
+            const minutosRestantes = Math.ceil((treintaMinutosMs - tiempoTranscurrido) / (60 * 1000));
             document.getElementById('juego-section').innerHTML = `
                 <div class="card card-casino p-4 text-center">
-                    <h5 class="text-warning mb-2">⏳ ¡Ya participaste hoy!</h5>
-                    <p class="text-light small mb-0">Este dispositivo ya giró la ruleta. Te esperamos en ANANA CLUB para canjear tu premio o volver a intentar mañana.</p>
+                    <h4 class="text-warning mb-2">⏳ ¡Esperá un momento!</h4>
+                    <p class="text-light small mb-0 fs-6">Ya realizaste un giro recientemente. Podrás volver a participar en aproximadamente <b>${minutosRestantes} minutos</b>.</p>
                 </div>
             `;
             return;
@@ -62,8 +64,8 @@ window.onload = function() {
 function dibujarRuleta() {
     const totalPorciones = premiosOriginales.length;
     const anguloPorcion = (2 * Math.PI) / totalPorciones;
-    const centroX = canvas.width / 2; // 250px
-    const centroY = canvas.height / 2; // 250px
+    const centroX = canvas.width / 2;
+    const centroY = canvas.height / 2;
     const radio = centroX - 10;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -77,7 +79,6 @@ function dibujarRuleta() {
         ctx.arc(centroX, centroY, radio, anguloInicio, anguloFin);
         ctx.closePath();
 
-        // 1. COLORES TRADICIONALES: Rojo Casino (#d32f2f) y Negro (#1b1b1b) (Joker en Dorado)
         if (premiosOriginales[i].es_joker) {
             ctx.fillStyle = "#d4af37";
         } else {
@@ -94,19 +95,17 @@ function dibujarRuleta() {
         ctx.rotate(anguloInicio + anguloPorcion / 2);
         ctx.textAlign = "right";
 
-        // 2. TEXTO EN COLOR Y TAMAÑO MÁS GRANDE (15px)
         if (premiosOriginales[i].es_joker) {
             ctx.fillStyle = "#000000";
             ctx.font = "bold 16px Montserrat, sans-serif";
         } else {
-            ctx.fillStyle = "#ffffff"; // Blanco tanto para sectores rojos como negros
+            ctx.fillStyle = "#ffffff";
             ctx.font = "bold 15px Montserrat, sans-serif";
         }
         
         let texto = premiosOriginales[i].titulo;
         let palabras = texto.split(" ");
 
-        // 3. MULTILÍNEA AJUSTADA PARA EL NUEVO TAMAÑO
         if (palabras.length > 2 || (texto.length > 11)) {
             const mitad = Math.ceil(palabras.length / 2);
             const linea1 = palabras.slice(0, mitad).join(" ");
@@ -121,7 +120,6 @@ function dibujarRuleta() {
         ctx.restore();
     }
 
-    // Círculo central decorativo con la piña/anana
     ctx.beginPath();
     ctx.arc(centroX, centroY, 35, 0, 2 * Math.PI);
     ctx.fillStyle = '#08080c';
@@ -198,7 +196,6 @@ function animarGiroRuleta(indiceGanador) {
             requestAnimationFrame(frame);
         } else {
             const btnGirar = document.getElementById('btnGirar');
-
             const resultadoLower = premioGanadoTexto.toLowerCase().trim();
 
             if (resultadoLower.includes("vale otro tiro") || resultadoLower.includes("otro tiro")) {
@@ -215,7 +212,7 @@ function animarGiroRuleta(indiceGanador) {
                     document.getElementById('juego-section').innerHTML = `
                         <div class="card card-casino p-4 text-center">
                             <h4 class="text-warning mb-2">😅 ¡Seguí participando!</h4>
-                            <p class="text-light small mb-0 fs-6">Esta vez no hubo suerte, ¡pero te esperamos hoy en ANANA CLUB para disfrutar la noche! Mañana podés volver a intentar.</p>
+                            <p class="text-light small mb-0 fs-6">Esta vez no hubo suerte. Podrás volver a girar la ruleta en 30 minutos.</p>
                         </div>
                     `;
                 }, 600);
