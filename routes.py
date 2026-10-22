@@ -35,7 +35,18 @@ def registrar_rutas(app):
     @app.route('/')
     def index():
         evento_activo = Evento.query.filter_by(activo=True).first()
-        premios = Premio.query.filter_by(evento_id=evento_activo.id, activo=True).all() if evento_activo else []
+        
+        # 1. Consultamos los premios de la base de datos
+        premios_db = Premio.query.filter_by(evento_id=evento_activo.id, activo=True).all() if evento_activo else []
+        
+        # 2. Convertimos los objetos SQLAlchemy a diccionarios puros compatibles con JSON
+        premios = [{
+            'id': p.id,
+            'titulo': p.titulo,
+            'probabilidad': p.probabilidad,
+            'es_joker': p.es_joker
+        } for p in premios_db]
+        
         return render_template('index.html', premios=premios, evento=evento_activo)
 
     @app.route('/girar', methods=['POST'])

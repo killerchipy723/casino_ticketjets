@@ -40,7 +40,8 @@ function reproducirSonidoGanador() {
     });
 }
 
-const colores = ['#111116', '#8a6d1c', '#721c24', '#0f5132', '#432874', '#b08d2b', '#1c1d22'];
+// Paleta de colores elegantes estilo casino
+const colores = ['#12121a', '#1a1a26', '#0f172a', '#1e1e2d', '#251c0a', '#1a2210', '#1c1d22'];
 
 window.onload = function() {
     const ultimaJugada = localStorage.getItem('ruleta_fecha_jugada');
@@ -50,9 +51,9 @@ window.onload = function() {
         
         if (diferenciaHoras < 24) {
             document.getElementById('juego-section').innerHTML = `
-                <div class="card card-casino p-3 text-center">
+                <div class="card card-casino p-4 text-center">
                     <h5 class="text-warning mb-2">⏳ ¡Ya participaste hoy!</h5>
-                    <p class="text-light small mb-0">Este Dispositivo ya giró la ruleta. Te esperamos en ANANA CLUB para canjear tu premio o volver a intentar mañana.</p>
+                    <p class="text-light small mb-0">Este dispositivo ya giró la ruleta. Te esperamos en ANANA CLUB para canjear tu premio o volver a intentar mañana.</p>
                 </div>
             `;
             return;
@@ -61,12 +62,31 @@ window.onload = function() {
     dibujarRuleta();
 };
 
+// Función para abreviar dinámicamente los textos largos SOLO en la gráfica del Canvas
+function abreviarTexto(texto) {
+    if (!texto) return "";
+    
+    let abreviado = texto
+        .replace(/Combo /gi, "")
+        .replace(/Entradas/gi, "Ent.")
+        .replace(/Consumición/gi, "Consum.")
+        .replace(/Botella Champagne/gi, "Champagne")
+        .replace(/hasta las 2 AM/gi, "")
+        .replace(/JOKER:/gi, "🃏")
+        .trim();
+
+    if (abreviado.length > 18) {
+        return abreviado.substring(0, 16) + '..';
+    }
+    return abreviado;
+}
+
 function dibujarRuleta() {
-    const totalPorciones = premios.length;
+    const totalPorciones = premiosOriginales.length;
     const anguloPorcion = (2 * Math.PI) / totalPorciones;
-    const centroX = canvas.width / 2;
-    const centroY = canvas.height / 2;
-    const radio = canvas.width / 2 - 10;
+    const centroX = canvas.width / 2; // 250px
+    const centroY = canvas.height / 2; // 250px
+    const radio = centroX - 10;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -78,7 +98,14 @@ function dibujarRuleta() {
         ctx.moveTo(centroX, centroY);
         ctx.arc(centroX, centroY, radio, anguloInicio, anguloFin);
         ctx.closePath();
-        ctx.fillStyle = colores[i % colores.length];
+
+        // Si es el Joker, destacamos con color dorado; de lo contrario, colores alternados
+        if (premiosOriginales[i].es_joker) {
+            ctx.fillStyle = "#d4af37";
+        } else {
+            ctx.fillStyle = colores[i % colores.length];
+        }
+        
         ctx.fill();
         ctx.lineWidth = 3;
         ctx.strokeStyle = '#d4af37';
@@ -88,23 +115,36 @@ function dibujarRuleta() {
         ctx.translate(centroX, centroY);
         ctx.rotate(anguloInicio + anguloPorcion / 2);
         ctx.textAlign = "right";
-        ctx.fillStyle = "#ffffff";
-        ctx.font = "bold 15px Montserrat";
+
+        if (premiosOriginales[i].es_joker) {
+            ctx.fillStyle = "#000000";
+            ctx.font = "bold 15px Montserrat, sans-serif";
+        } else {
+            ctx.fillStyle = "#ffffff";
+            ctx.font = "bold 14px Montserrat, sans-serif";
+        }
         
-        let texto = premios[i];
-        if (texto.length > 18) texto = texto.substring(0, 16) + '...';
+        // Aplicamos la abreviación gráfica
+        let textoVisible = abreviarTexto(premiosOriginales[i].titulo);
         
-        ctx.fillText(texto, radio - 22, 5);
+        ctx.fillText(textoVisible, radio - 25, 5);
         ctx.restore();
     }
 
+    // Círculo central decorativo con la piña/anana
     ctx.beginPath();
-    ctx.arc(centroX, centroY, 30, 0, 2 * Math.PI);
+    ctx.arc(centroX, centroY, 35, 0, 2 * Math.PI);
     ctx.fillStyle = '#08080c';
     ctx.fill();
     ctx.lineWidth = 3;
     ctx.strokeStyle = '#d4af37';
     ctx.stroke();
+
+    ctx.fillStyle = "#d4af37";
+    ctx.font = "bold 20px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("🍍", centroX, centroY);
 }
 
 function iniciarGiro() {
@@ -112,10 +152,7 @@ function iniciarGiro() {
     girando = true;
 
     const btnGirar = document.getElementById('btnGirar');
-    const joker = document.getElementById('joker');
-    
     btnGirar.disabled = true;
-    joker.classList.add('joker-spinning');
 
     fetch('/girar', {
         method: 'POST',
@@ -125,12 +162,12 @@ function iniciarGiro() {
     .then(data => {
         if (data.success) {
             premioGanadoTexto = data.premio;
-            const indiceGanador = premios.indexOf(data.premio);
+            // Buscamos el índice basándonos en el título original del objeto
+            const indiceGanador = premiosOriginales.findIndex(p => p.titulo === data.premio);
             animarGiroRuleta(indiceGanador >= 0 ? indiceGanador : 0);
         } else {
             alert(data.error || 'Ocurrió un error.');
             btnGirar.disabled = false;
-            joker.classList.remove('joker-spinning');
             girando = false;
         }
     })
@@ -138,13 +175,12 @@ function iniciarGiro() {
         console.error(err);
         alert('Error al conectar con el servidor.');
         btnGirar.disabled = false;
-        joker.classList.remove('joker-spinning');
         girando = false;
     });
 }
 
 function animarGiroRuleta(indiceGanador) {
-    const totalPorciones = premios.length;
+    const totalPorciones = premiosOriginales.length;
     const anguloPorcion = (2 * Math.PI) / totalPorciones;
     const anguloObjetivoPorcion = (1.5 * Math.PI) - (indiceGanador * anguloPorcion) - (anguloPorcion / 2);
     
@@ -172,16 +208,12 @@ function animarGiroRuleta(indiceGanador) {
         if (progreso < 1) {
             requestAnimationFrame(frame);
         } else {
-            const joker = document.getElementById('joker');
             const btnGirar = document.getElementById('btnGirar');
-            joker.classList.remove('joker-spinning');
 
             // --- EVALUACIÓN DE RESULTADOS ESPECIALES ---
             const resultadoLower = premioGanadoTexto.toLowerCase().trim();
 
             if (resultadoLower.includes("vale otro tiro") || resultadoLower.includes("otro tiro")) {
-                // CASO 1: VALE OTRO TIRO
-                // No guardamos en localStorage, notificamos y habilitamos el botón de nuevo
                 setTimeout(() => {
                     alert('🎰 ¡VALE OTRO TIRO! Tenés una oportunidad más para girar la ruleta.');
                     btnGirar.disabled = false;
@@ -189,8 +221,6 @@ function animarGiroRuleta(indiceGanador) {
                 }, 500);
 
             } else if (resultadoLower.includes("seguí participando") || resultadoLower.includes("segui participando")) {
-                // CASO 2: SEGUÍ PARTICIPANDO
-                // Bloqueamos por 24hs pero mostramos aviso sin formulario
                 localStorage.setItem('ruleta_fecha_jugada', new Date().getTime().toString());
                 
                 setTimeout(() => {
@@ -203,7 +233,6 @@ function animarGiroRuleta(indiceGanador) {
                 }, 600);
 
             } else {
-                // CASO 3: PREMIO REAL
                 localStorage.setItem('ruleta_fecha_jugada', new Date().getTime().toString());
                 reproducirSonidoGanador();
                 confetti({
