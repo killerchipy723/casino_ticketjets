@@ -280,3 +280,14 @@ def registrar_rutas(app):
         ganador.reclamado = not ganador.reclamado
         db.session.commit()
         return redirect(url_for('admin_dashboard', evento_id=ganador.evento_id))
+
+    @app.route('/admin/resetear_pruebas')
+    def resetear_pruebas():
+        # Elimina todos los registros de la tabla de ganadores
+        try:
+            Ganador.query.delete()
+            db.session.commit()
+            return "<h1>✅ Todas las jugadas y tickets de prueba fueron eliminados con éxito.</h1><a href='/admin'>Volver al Admin</a>"
+        except Exception as e:
+            db.session.rollback()
+            return f"<h1>❌ Error al resetear: {str(e)}</h1>"
