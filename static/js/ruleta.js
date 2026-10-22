@@ -40,9 +40,6 @@ function reproducirSonidoGanador() {
     });
 }
 
-// Paleta de colores elegantes estilo casino
-const colores = ['#12121a', '#1a1a26', '#0f172a', '#1e1e2d', '#251c0a', '#1a2210', '#1c1d22'];
-
 window.onload = function() {
     const ultimaJugada = localStorage.getItem('ruleta_fecha_jugada');
     if (ultimaJugada) {
@@ -62,25 +59,6 @@ window.onload = function() {
     dibujarRuleta();
 };
 
-// Función para abreviar dinámicamente los textos largos SOLO en la gráfica del Canvas
-function abreviarTexto(texto) {
-    if (!texto) return "";
-    
-    let abreviado = texto
-        .replace(/Combo /gi, "")
-        .replace(/Entradas/gi, "Ent.")
-        .replace(/Consumición/gi, "Consum.")
-        .replace(/Botella Champagne/gi, "Champagne")
-        .replace(/hasta las 2 AM/gi, "")
-        .replace(/JOKER:/gi, "🃏")
-        .trim();
-
-    if (abreviado.length > 18) {
-        return abreviado.substring(0, 16) + '..';
-    }
-    return abreviado;
-}
-
 function dibujarRuleta() {
     const totalPorciones = premiosOriginales.length;
     const anguloPorcion = (2 * Math.PI) / totalPorciones;
@@ -99,11 +77,11 @@ function dibujarRuleta() {
         ctx.arc(centroX, centroY, radio, anguloInicio, anguloFin);
         ctx.closePath();
 
-        // Si es el Joker, destacamos con color dorado; de lo contrario, colores alternados
+        // 1. COLORES TRADICIONALES: Rojo Casino (#d32f2f) y Negro (#1b1b1b) (Joker en Dorado)
         if (premiosOriginales[i].es_joker) {
             ctx.fillStyle = "#d4af37";
         } else {
-            ctx.fillStyle = colores[i % colores.length];
+            ctx.fillStyle = (i % 2 === 0) ? "#d32f2f" : "#1b1b1b";
         }
         
         ctx.fill();
@@ -116,18 +94,30 @@ function dibujarRuleta() {
         ctx.rotate(anguloInicio + anguloPorcion / 2);
         ctx.textAlign = "right";
 
+        // 2. TEXTO EN COLOR Y TAMAÑO MÁS GRANDE (15px)
         if (premiosOriginales[i].es_joker) {
             ctx.fillStyle = "#000000";
-            ctx.font = "bold 15px Montserrat, sans-serif";
+            ctx.font = "bold 16px Montserrat, sans-serif";
         } else {
-            ctx.fillStyle = "#ffffff";
-            ctx.font = "bold 14px Montserrat, sans-serif";
+            ctx.fillStyle = "#ffffff"; // Blanco tanto para sectores rojos como negros
+            ctx.font = "bold 15px Montserrat, sans-serif";
         }
         
-        // Aplicamos la abreviación gráfica
-        let textoVisible = abreviarTexto(premiosOriginales[i].titulo);
-        
-        ctx.fillText(textoVisible, radio - 25, 5);
+        let texto = premiosOriginales[i].titulo;
+        let palabras = texto.split(" ");
+
+        // 3. MULTILÍNEA AJUSTADA PARA EL NUEVO TAMAÑO
+        if (palabras.length > 2 || (texto.length > 11)) {
+            const mitad = Math.ceil(palabras.length / 2);
+            const linea1 = palabras.slice(0, mitad).join(" ");
+            const linea2 = palabras.slice(mitad).join(" ");
+
+            ctx.fillText(linea1, radio - 20, -7);
+            ctx.fillText(linea2, radio - 20, 10);
+        } else {
+            ctx.fillText(texto, radio - 20, 5);
+        }
+
         ctx.restore();
     }
 
@@ -162,7 +152,6 @@ function iniciarGiro() {
     .then(data => {
         if (data.success) {
             premioGanadoTexto = data.premio;
-            // Buscamos el índice basándonos en el título original del objeto
             const indiceGanador = premiosOriginales.findIndex(p => p.titulo === data.premio);
             animarGiroRuleta(indiceGanador >= 0 ? indiceGanador : 0);
         } else {
@@ -210,7 +199,6 @@ function animarGiroRuleta(indiceGanador) {
         } else {
             const btnGirar = document.getElementById('btnGirar');
 
-            // --- EVALUACIÓN DE RESULTADOS ESPECIALES ---
             const resultadoLower = premioGanadoTexto.toLowerCase().trim();
 
             if (resultadoLower.includes("vale otro tiro") || resultadoLower.includes("otro tiro")) {
