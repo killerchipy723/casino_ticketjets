@@ -53,7 +53,18 @@
 <body>
 
 <div class="card-casino p-4 text-center">
-    <h3 class="text-gold fw-bold mb-1">🍍 ANANA CLUB</h3>
+
+    <!-- LOGO OFICIAL PNG TRANSPARENTE DE ANANA CLUB -->
+    <div class="logo-container text-center mb-3">
+        <div class="anana-logo-wrapper mb-1">
+            <img src="{{ url_for('static', filename='images/anana_logo_transparente.png') }}" 
+                 alt="ANANA CLUB Logo" 
+                 class="img-fluid" 
+                 style="max-height: 110px; width: auto; object-fit: contain; filter: drop-shadow(0 0 10px rgba(212, 175, 55, 0.4));">
+        </div>
+        <div class="sub-title text-gold fw-bold small" style="letter-spacing: 2px;">NOCHE DE CASINO</div>
+    </div>
+
     <h5 class="text-white mb-3">¡Felicidades, {{ datos.nombre }}!</h5>
     
     <!-- SECCIÓN ORGANIZADA DE GANASTE Y DETALLE -->
@@ -83,6 +94,7 @@
         <a href="/" class="text-muted small text-decoration-none">← Volver al inicio</a>
     </div>
 </div>
+
 <script>
     // Dispara la descarga automática del ticket PDF 1 segundo después de cargar la página
     window.addEventListener('DOMContentLoaded', () => {
