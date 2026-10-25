@@ -46,7 +46,7 @@ def registrar_rutas(app):
             'es_joker': p.es_joker
         } for p in premios_db]
         
-        return render_template('index.html', premios=premios, evento=evento_activo)
+        return render_template('temporal.html', premios=premios, evento=evento_activo)
 
     @app.route('/girar', methods=['POST'])
     def girar():

@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ANANA CLUB - Próximo Evento</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { 
+            background-color: #08080c; 
+            color: #ffffff; 
+            font-family: 'Montserrat', sans-serif; 
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .card-casino { 
+            background: #12121a; 
+            border: 2px solid #d4af37; 
+            border-radius: 16px; 
+            box-shadow: 0 0 30px rgba(212, 175, 55, 0.2); 
+        }
+        .text-gold { 
+            color: #d4af37 !important; 
+        }
+        .btn-gold { 
+            background: linear-gradient(45deg, #d4af37, #f9e076, #b38728); 
+            color: #000; 
+            font-weight: bold; 
+            border: none; 
+            padding: 10px 24px;
+            border-radius: 8px;
+            transition: transform 0.2s;
+        }
+        .btn-gold:hover { 
+            background: #f9e076; 
+            transform: scale(1.02);
+        }
+        .logo-img {
+            max-width: 110px;
+            height: auto;
+        }
+        .contador-box {
+            background: rgba(26, 26, 36, 0.9);
+            border: 1px solid #d4af37;
+            border-radius: 10px;
+            padding: 10px;
+            min-width: 65px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container text-center px-3">
+    <div class="row justify-content-center">
+        <div class="col-md-7 col-lg-6">
+            <div class="card card-casino p-4 p-md-5">
+                
+                <!-- LOGO -->
+                <div class="mb-3">
+                    <img src="{{ url_for('static', filename='images/anana_logo_transparente.png') }}" alt="ANANA CLUB" class="logo-img">
+                </div>
+
+                <!-- TÍTULO PRINCIPAL -->
+                <h2 class="text-gold fw-bold mb-1 text-uppercase" style="letter-spacing: 1px;">ANANA CLUB</h2>
+                <h5 class="text-light fw-bold mb-3"></h5>
+
+                <!-- LÍNEA DIVISORIA -->
+                <hr class="border-secondary mb-4">
+
+                <!-- MENSAJE SOLICITADO -->
+                <h4 class="text-warning fw-bold mb-3">¡El desafío ha terminado!</h4>
+                <p class="text-light small mb-4" style="line-height: 1.6;">
+                    Te esperamos nuevamente para una noche imperdible. <br>El evento empezará en:
+                </p>
+
+                <!-- CONTADOR REGRESIVO -->
+                <div class="d-flex justify-content-center gap-2 mb-4">
+                    <div class="contador-box">
+                        <span id="days" class="fs-4 fw-bold text-gold d-block">00</span>
+                        <small class="text-white text-uppercase" style="font-size: 0.65rem;">Días</small>
+                    </div>
+                    <div class="contador-box">
+                        <span id="hours" class="fs-4 fw-bold text-gold d-block">00</span>
+                        <small class="text-white text-uppercase" style="font-size: 0.65rem;">Horas</small>
+                    </div>
+                    <div class="contador-box">
+                        <span id="minutes" class="fs-4 fw-bold text-gold d-block">00</span>
+                        <small class="text-white text-uppercase" style="font-size: 0.65rem;">Minutos</small>
+                    </div>
+                    <div class="contador-box">
+                        <span id="seconds" class="fs-4 fw-bold text-gold d-block">00</span>
+                        <small class="text-white text-uppercase" style="font-size: 0.65rem;">Segundos</small>
+                    </div>
+                </div>
+
+                <!-- BOTÓN DE ACCIÓN -->
+                <div>
+                    <a href="https://instagram.com" target="_blank" class="btn btn-gold text-uppercase small">
+                        Seguinos en Instagram
+                    </a>
+                </div>
+
+            </div>
+            
+            <!-- PIE DE PÁGINA -->
+            <div class="mt-4 text-muted" style="font-size: 0.75rem;">
+                &copy; ANANA CLUB. Todos los derechos reservados.
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- SCRIPT DEL CONTADOR (Fecha objetivo: 31 de Octubre) -->
+<script>
+    const countDownDate = new Date("Oct 31, 2026 00:00:00").getTime();
+
+    const x = setInterval(function() {
+        const now = new Date().getTime();
+        const distance = countDownDate - now;
+
+        const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+        document.getElementById("days").innerText = String(days).padStart(2, '0');
+        document.getElementById("hours").innerText = String(hours).padStart(2, '0');
+        document.getElementById("minutes").innerText = String(minutes).padStart(2, '0');
+        document.getElementById("seconds").innerText = String(seconds).padStart(2, '0');
+
+        if (distance < 0) {
+            clearInterval(x);
+            document.getElementById("days").innerText = "00";
+            document.getElementById("hours").innerText = "00";
+            document.getElementById("minutes").innerText = "00";
+            document.getElementById("seconds").innerText = "00";
+        }
+    }, 1000);
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</white
