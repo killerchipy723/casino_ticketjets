@@ -246,6 +246,8 @@ def registrar_rutas(app):
         return render_template('admin/resultado_scan.html', ganador=ganador)
 
     # --- PANEL ADMIN DASHBOARD ---
+    from sqlalchemy import func
+
     @app.route('/admin')
     def admin_dashboard():
         if not session.get('admin_logged_in'):
@@ -259,7 +261,29 @@ def registrar_rutas(app):
         premios = Premio.query.filter_by(evento_id=evento_actual.id).all() if evento_actual else []
         ganadores = Ganador.query.filter_by(evento_id=evento_actual.id).order_by(Ganador.fecha.desc()).all() if evento_actual else []
 
-        return render_template('admin/dashboard.html', eventos=eventos, evento_actual=evento_actual, premios=premios, ganadores=ganadores)
+        # --- NUEVAS ESTADÍSTICAS (Equivalente a tu SQL agrupado por premio) ---
+        total_participantes = 0
+        stats_premios = []
+        
+        if evento_actual:
+            total_participantes = Ganador.query.filter_by(evento_id=evento_actual.id).count()
+            
+            stats_premios = db.session.query(
+                Ganador.premio, 
+                func.count(Ganador.id).label('cantidad')
+            ).filter_by(evento_id=evento_actual.id)\
+            .group_by(Ganador.premio)\
+            .order_by(func.count(Ganador.id).desc()).all()
+
+        return render_template(
+            'admin/dashboard.html', 
+            eventos=eventos, 
+            evento_actual=evento_actual, 
+            premios=premios, 
+            ganadores=ganadores,
+            total_participantes=total_participantes,
+            stats_premios=stats_premios
+        )
 
     @app.route('/admin/evento/agregar', methods=['POST'])
     def agregar_evento():

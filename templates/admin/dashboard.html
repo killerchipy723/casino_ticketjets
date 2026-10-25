@@ -18,27 +18,27 @@
 
 <div class="container py-4">
     
-<!-- BARRA SUPERIOR RESPONSIVE -->
-<div class="d-flex flex-column flex-sm-row justify-content-between align-items-center gap-3 mb-4 card-casino p-3">
-    <!-- TÍTULO PRINCIPAL -->
-    <div class="text-center text-sm-start w-100 w-sm-auto">
-        <h3 class="text-gold fw-bold mb-0">🍍 ANANA ADMIN</h3>
-        <small class="text-muted d-block d-sm-none" style="font-size: 0.75rem;">Panel de Control VIP</small>
-    </div>
+    <!-- BARRA SUPERIOR RESPONSIVE -->
+    <div class="d-flex flex-column flex-sm-row justify-content-between align-items-center gap-3 mb-4 card-casino p-3">
+        <!-- TÍTULO PRINCIPAL -->
+        <div class="text-center text-sm-start w-100 w-sm-auto">
+            <h3 class="text-gold fw-bold mb-0">🍍 ANANA ADMIN</h3>
+            <small class="text-muted d-block d-sm-none" style="font-size: 0.75rem;">Panel de Control VIP</small>
+        </div>
 
-    <!-- BOTONES DE ACCIÓN FLUIDOS EN MÓVIL -->
-    <div class="d-flex flex-wrap justify-content-center justify-content-sm-end gap-2 w-100 w-sm-auto">
-        <a href="/admin/escaneo" class="btn btn-warning btn-sm fw-bold flex-fill flex-sm-grow-0 d-flex align-items-center justify-content-center gap-1">
-            <span>📷</span> <span>Escáner QR</span>
-        </a>
-        <a href="/" class="btn btn-outline-light btn-sm flex-fill flex-sm-grow-0 d-flex align-items-center justify-content-center">
-            Ruleta
-        </a>
-        <a href="/admin/logout" class="btn btn-outline-danger btn-sm flex-fill flex-sm-grow-0 d-flex align-items-center justify-content-center">
-            Salir
-        </a>
+        <!-- BOTONES DE ACCIÓN FLUIDOS EN MÓVIL -->
+        <div class="d-flex flex-wrap justify-content-center justify-content-sm-end gap-2 w-100 w-sm-auto">
+            <a href="/admin/escaneo" class="btn btn-warning btn-sm fw-bold flex-fill flex-sm-grow-0 d-flex align-items-center justify-content-center gap-1">
+                <span>📷</span> <span>Escáner QR</span>
+            </a>
+            <a href="/" class="btn btn-outline-light btn-sm flex-fill flex-sm-grow-0 d-flex align-items-center justify-content-center">
+                Ruleta
+            </a>
+            <a href="/admin/logout" class="btn btn-outline-danger btn-sm flex-fill flex-sm-grow-0 d-flex align-items-center justify-content-center">
+                Salir
+            </a>
+        </div>
     </div>
-</div>
 
     <!-- SELECCIÓN O CREACIÓN DE EVENTO -->
     <div class="card card-casino p-3 mb-4">
@@ -60,6 +60,33 @@
     </div>
 
     {% if evento_actual %}
+    <!-- ESTADÍSTICAS DEL EVENTO (PARTICIPANTES Y RESUMEN DE PREMIOS) -->
+    <div class="row mb-4 g-3">
+        <div class="col-md-4">
+            <div class="card card-casino p-3 text-center h-100 d-flex flex-column justify-content-center">
+                <h6 class="text-white text-uppercase small mb-1">Total Participantes</h6>
+                <h3 class="text-gold fw-bold mb-0">👥 {{ total_participantes }}</h3>
+            </div>
+        </div>
+        
+        <div class="col-md-8">
+            <div class="card card-casino p-3 h-100">
+                <h6 class="text-white text-uppercase small mb-2">Premios Entregados (Resumen)</h6>
+                <div class="d-flex flex-wrap gap-2 align-items-center">
+                    {% if stats_premios %}
+                        {% for stat in stats_premios %}
+                            <span class="badge bg-secondary border border-gold p-2 text-wrap">
+                                🎁 <strong>{{ stat.premio }}</strong>: <span class="text-gold">{{ stat.cantidad }}</span>
+                            </span>
+                        {% endfor %}
+                    {% else %}
+                        <span class="text-white small">Aún no hay premios registrados en este evento.</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- ACCIONES DE PREMIOS -->
     <div class="card card-casino p-3 mb-4">
         <div class="d-flex justify-content-between align-items-center mb-2">
@@ -83,7 +110,6 @@
                         <td>{{ p.probabilidad }}</td>
                         <td>{{ 'Sí' if p.es_joker else 'No' }}</td>
                         <td>
-                            <!-- Botón para abrir el modal de edición -->
                             <button class="btn btn-warning btn-sm py-0 px-2" 
                                     data-bs-toggle="modal" 
                                     data-bs-target="#modalEditarPremio{{ p.id }}">✏️</button>
@@ -124,7 +150,7 @@
                         <td>{{ g.premio }}</td>
                         <td>
                             <code>{{ g.codigo_ticket }}</code><br>
-                            <a href="/admin/ticket/pdf/{{ g.id }}" class="btn btn-sm btn-outline-warning mt-1">📥 PDF</a>
+                            <a href="/descargar_ticket/{{ g.codigo_ticket }}" class="btn btn-sm btn-outline-warning mt-1">📥 PDF</a>
                         </td>
                         <td>
                             <a href="/admin/ganador/reclamado/{{ g.id }}" class="btn btn-sm {% if g.reclamado %}btn-success{% else %}btn-secondary{% endif %}">
