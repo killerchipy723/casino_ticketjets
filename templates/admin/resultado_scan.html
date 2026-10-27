@@ -28,7 +28,7 @@
 
     {% if ticket %}
         <h4 class="text-gold fw-bold mb-1">{{ ticket.titular_nombre }}</h4>
-        <p class="text-muted small mb-3">DNI: <strong>{{ ticket.titular_dni }}</strong> | RRPP: <strong>{{ ticket.vendedor.nombre_completo }}</strong></p>
+        <p class="text-white small mb-3">DNI: <strong>{{ ticket.titular_dni }}</strong> | RRPP: <strong>{{ ticket.vendedor.nombre_completo }}</strong></p>
 
         <!-- ESTADO Y CANTIDAD DE ENTRADAS -->
         <div class="mb-4">
@@ -55,7 +55,7 @@
         {% if disponibles > 0 %}
             <form method="POST" action="/admin/validar/{{ ticket.codigo_qr }}">
                 <div class="mb-3 text-start">
-                    <label class="form-label small text-muted">¿Cuántas personas ingresan ahora?</label>
+                    <label class="form-label small text-white">¿Cuántas personas ingresan ahora?</label>
                     <input type="number" name="entradas_a_ingresar" class="form-control bg-dark text-white border-warning text-center fw-bold fs-5" value="{{ disponibles }}" min="1" max="{{ disponibles }}" required>
                 </div>
                 <button type="submit" class="btn btn-gold w-100 mb-3">AUTORIZAR INGRESO</button>
