@@ -29,7 +29,7 @@ def login_required(roles=None):
         return decorated_function
     return decorator
 
-def registrar_rutas(app):
+def registrar_rutas(app): 
 
     # ==========================================
     # 🎰 RUTAS DE LA RULETA (PRESERVADAS)
@@ -38,8 +38,6 @@ def registrar_rutas(app):
     def index():
         evento_activo = Evento.query.filter_by(activo=True).first()
         premios_db = Premio.query.filter_by(evento_id=evento_activo.id, activo=True).all() if evento_activo else []
-        premios = [{'id': p.id, 'titulo': p.titulo, 'probabilidad': p.probabilidad, 'es_joker': p.es_joker} for p in premios_db]
-        return render_template('index.html', premios=premios, evento=evento_activo)
 
     @app.route('/girar', methods=['POST'])
     def girar():
