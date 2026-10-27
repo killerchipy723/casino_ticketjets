@@ -207,7 +207,6 @@ def registrar_rutas(app):
 
     # PDF del Pase RRPP
     @app.route('/rrpp/ticket/pdf/<codigo>')
-    @login_required(roles=['rrpp', 'supervisor', 'admin'])
     def descargar_pdf_rrpp(codigo):
         ticket = TicketQR.query.filter_by(codigo_qr=codigo).first_or_404()
         buffer = io.BytesIO()
