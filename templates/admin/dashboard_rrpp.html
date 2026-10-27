@@ -22,7 +22,7 @@
     <div class="d-flex flex-column flex-sm-row justify-content-between align-items-center gap-3 mb-4 card-casino p-3">
         <div>
             <h3 class="text-gold fw-bold mb-0">🍍 ANANA ADMIN GENERAL</h3>
-            <small class="text-muted">Gestión de Personal RRPP y Control de Entradas VIP</small>
+            <small class="text-white">Gestión de Personal RRPP y Control de Entradas VIP</small>
         </div>
         <div class="d-flex flex-wrap gap-2">
             <a href="/admin/escaneo" class="btn btn-warning btn-sm fw-bold">📷 Escáner QR</a>
@@ -82,7 +82,7 @@
                         </td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="5" class="text-center text-muted py-3">No hay vendedores registrados.</td></tr>
+                    <tr><td colspan="5" class="text-center text-white py-3">No hay vendedores registrados.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -111,7 +111,7 @@
                         <td><strong>{{ t.titular_nombre }}</strong></td>
                         <td>
                             {{ t.titular_dni }}<br>
-                            <small class="text-muted">{{ t.titular_whatsapp }}</small>
+                            <small class="text-white">{{ t.titular_whatsapp }}</small>
                         </td>
                         <td>
                             <span class="badge bg-secondary">{{ t.entradas_usadas }} / {{ t.total_entradas }} personas</span>
@@ -128,7 +128,7 @@
                         </td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="6" class="text-center text-muted py-3">Aún no se han generado pases en el sistema.</td></tr>
+                    <tr><td colspan="6" class="text-center text-white py-3">Aún no se han generado pases en el sistema.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -156,7 +156,7 @@
                         <input type="text" name="username" class="form-control bg-dark text-white border-secondary" value="{{ v.username }}" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Nueva Contraseña <small class="text-muted">(dejar en blanco para conservar la actual)</small></label>
+                        <label class="form-label">Nueva Contraseña <small class="text-white">(dejar en blanco para conservar la actual)</small></label>
                         <input type="password" name="password" class="form-control bg-dark text-white border-secondary" placeholder="••••••">
                     </div>
                     <div class="mb-3">
