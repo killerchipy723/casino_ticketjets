@@ -20,9 +20,15 @@
     
     <!-- BARRA SUPERIOR -->
     <div class="d-flex flex-column flex-sm-row justify-content-between align-items-center gap-3 mb-4 card-casino p-3">
-        <div>
-            <h3 class="text-gold fw-bold mb-0">🍍 Usuario: {{ session.get('usuario_nombre') }}</h3>
-            <small class="text-white">Panel de Generación de Pases y Comisiones</small>
+        <div class="d-flex align-items-center gap-3">
+            <img src="{{ url_for('static', filename='images/anana_logo_transparente.png') }}" 
+                 alt="ANANA CLUB Logo" 
+                 class="img-fluid" 
+                 style="max-height: 50px; width: auto; object-fit: contain; filter: drop-shadow(0 0 8px rgba(212, 175, 55, 0.4));">
+            <div>
+                <h5 class="text-gold fw-bold mb-0">Usuario: {{ session.get('usuario_nombre') }}</h5>
+                <small class="text-white">Panel de Generación de Pases y Comisiones</small>
+            </div>
         </div>
         <div class="d-flex gap-2">
             <a href="/admin/escaneo" class="btn btn-warning btn-sm fw-bold">📷 Escanear QR (Puerta)</a>
@@ -165,9 +171,8 @@
         .then(res => res.json())
         .then(data => {
             if (data.success) {
-                // Abrir WhatsApp automáticamente con el mensaje y link del PDF
                 window.open(data.link_whatsapp, '_blank');
-                location.reload(); // Recargar para ver el ticket en la tabla
+                location.reload();
             } else {
                 alert(data.error || 'Error al generar el pase.');
             }

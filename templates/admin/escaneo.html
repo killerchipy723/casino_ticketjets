@@ -6,30 +6,42 @@
     <title>Escáner de Puerta - ANANA CLUB</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&display=swap" rel="stylesheet">
-    <!-- Librería html5-qrcode para activar la cámara -->
-    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <!-- Librería ultraligera jsQR para procesar los frames del video -->
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <style>
         body { background-color: #08080c; color: #fff; font-family: 'Montserrat', sans-serif; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
-        .card-casino { background: #12121a; border: 1px solid #d4af37; border-radius: 16px; box-shadow: 0 0 30px rgba(212, 175, 55, 0.2); width: 100%; max-width: 450px; padding: 25px; }
+        .card-casino { background: #12121a; border: 1px solid #d4af37; border-radius: 16px; box-shadow: 0 0 30px rgba(212, 175, 55, 0.2); width: 100%; max-width: 420px; padding: 25px; }
         .text-gold { color: #d4af37 !important; }
         .btn-gold { background: linear-gradient(45deg, #d4af37, #f9e076, #b38728); border: none; color: #000; font-weight: 900; text-transform: uppercase; padding: 12px; border-radius: 50px; }
         .form-control { background-color: #08080c !important; color: #fff !important; border: 1px solid #d4af37 !important; border-radius: 8px; text-align: center; }
-        #reader { border: 2px solid #d4af37; border-radius: 12px; overflow: hidden; background: #000; }
-        #reader button { background: #d4af37 !important; color: #000 !important; border: none !important; padding: 6px 12px !important; border-radius: 6px !important; font-weight: bold !important; }
+        #video-container { position: relative; width: 100%; height: 280px; background: #000; border: 2px solid #d4af37; border-radius: 12px; overflow: hidden; margin-bottom: 15px; }
+        video { width: 100%; height: 100%; object-fit: cover; }
+        .scan-laser { position: absolute; top: 50%; left: 10%; right: 10%; height: 2px; background: #ff3333; box-shadow: 0 0 8px #ff3333; animation: scan 2s infinite linear; }
+        @keyframes scan { 0% { top: 15%; } 50% { top: 85%; } 100% { top: 15%; } }
     </style>
 </head>
 <body>
 
 <div class="card-casino text-center">
-    <h3 class="text-gold fw-bold mb-1">📷 CONTROL DE PUERTA</h3>
-    <p class="text-muted small mb-3">Escanea el código QR o ingresa el código abajo</p>
+    <!-- LOGO OFICIAL -->
+    <div class="mb-2">
+        <img src="{{ url_for('static', filename='images/anana_logo_transparente.png') }}" 
+             alt="ANANA CLUB" 
+             style="max-height: 50px; width: auto; object-fit: contain; filter: drop-shadow(0 0 8px rgba(212, 175, 55, 0.4));">
+    </div>
 
-    <!-- Lector con Cámara -->
-    <div id="reader" class="mb-3"></div>
+    <h5 class="text-gold fw-bold mb-1">CONTROL DE PUERTA</h5>
+    <p class="text-white small mb-3">Apunta la cámara trasera al código QR</p>
 
-    <div class="text-muted small mb-3">— O ingreso manual —</div>
+    <!-- VÍDEO NATIVO DE LA CÁMARA TRASERA -->
+    <div id="video-container">
+        <video id="preview" playsinline></video>
+        <div class="scan-laser"></div>
+    </div>
 
-    <!-- Entrada Manual como respaldo -->
+    <div class="text-white small mb-2">— O ingreso manual —</div>
+
+    <!-- ENTRADA MANUAL COMO RESPALDO -->
     <form onsubmit="validarCodigo(event)">
         <div class="mb-3">
             <input type="text" id="codigoInput" class="form-control" placeholder="ANANA-PASS-XXXXXXXX" required>
@@ -37,31 +49,62 @@
         <button type="submit" class="btn btn-gold w-100">Verificar Código</button>
     </form>
 
-    <div class="mt-4">
-        <a href="/dashboard" class="text-muted small text-decoration-none">← Volver al Panel</a>
+    <div class="mt-3">
+        <a href="/dashboard" class="text-white small text-decoration-none">← Volver al Panel</a>
     </div>
 </div>
 
-<script>
-    function onScanSuccess(decodedText, decodedResult) {
-        // Extraer el código del ticket si se escanea la URL completa
-        let codigo = decodedText.trim();
-        if (codigo.includes('/')) {
-            const partes = codigo.split('/');
-            codigo = partes[partes.length - 1];
-        }
-        
-        // Detener cámara y redirigir a la validación
-        html5QrcodeScanner.clear().then(_ => {
-            window.location.href = `/admin/validar/${codigo}`;
-        }).catch(error => {
-            window.location.href = `/admin/validar/${codigo}`;
-        });
-    }
+<canvas id="canvas" hidden></canvas>
 
-    const html5QrcodeScanner = new Html5QrcodeScanner(
-        "reader", { fps: 10, qrbox: { width: 220, height: 220 } }, false);
-    html5QrcodeScanner.render(onScanSuccess);
+<script>
+    const video = document.getElementById('preview');
+    const canvasElement = document.getElementById('canvas');
+    const canvas = canvasElement.getContext('2d', { willReadFrequently: true });
+    let scanning = true;
+
+    // Forzar cámara trasera en dispositivos móviles (facingMode: environment)
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+    .then(function(stream) {
+        video.srcObject = stream;
+        video.setAttribute("playsinline", true); // Requerido para iOS/Android
+        video.play();
+        requestAnimationFrame(tick);
+    })
+    .catch(function(err) {
+        console.error("Error al acceder a la cámara: ", err);
+        alert("No se pudo acceder a la cámara. Usa el ingreso manual.");
+    });
+
+    function tick() {
+        if (!scanning) return;
+
+        if (video.readyState === video.HAVE_ENOUGH_DATA) {
+            canvasElement.height = video.videoHeight;
+            canvasElement.width = video.videoWidth;
+            canvas.drawImage(video, 0, 0, canvasElement.width, canvasElement.height);
+            
+            var imageData = canvas.getImageData(0, 0, canvasElement.width, canvasElement.height);
+            var code = jsQR(imageData.data, imageData.width, imageData.height, {
+                inversionAttempts: "dontInvert",
+            });
+
+            if (code) {
+                scanning = false;
+                let textoQR = code.data.trim();
+                
+                // Si escanea la URL completa, extraer el código final
+                if (textoQR.includes('/')) {
+                    const partes = textoQR.split('/');
+                    textoQR = partes[partes.length - 1];
+                }
+
+                // Redirigir directamente a la validación
+                window.location.href = `/admin/validar/${textoQR}`;
+                return;
+            }
+        }
+        requestAnimationFrame(tick);
+    }
 
     function validarCodigo(e) {
         e.preventDefault();

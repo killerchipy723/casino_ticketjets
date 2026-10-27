@@ -252,46 +252,47 @@ def registrar_rutas(app):
     # ==========================================
     # 📷 ESCANEO Y VALIDACIÓN PARCIAL (PUERTA)
     # ==========================================
+   # --- PANTALLA DE CONTROL Y VALIDACIÓN DE QR ---
     @app.route('/admin/escaneo')
     @login_required(roles=['admin', 'supervisor', 'rrpp'])
-    def admin_escaneo():
+    def vista_escaneo():
         return render_template('admin/escaneo.html')
 
     @app.route('/admin/validar/<codigo>', methods=['GET', 'POST'])
     @login_required(roles=['admin', 'supervisor', 'rrpp'])
-    def escaneo_validar(codigo):
+    def validar_ticket(codigo):
         ticket = TicketQR.query.filter_by(codigo_qr=codigo).first()
-        if not ticket:
-            return render_template('admin/resultado_scan.html', error="❌ Pase QR no encontrado en el sistema.")
 
         if request.method == 'POST':
-            try:
-                entradas_a_ingresar = int(request.form.get('entradas_a_ingresar', 1))
-            except ValueError:
-                entradas_a_ingresar = 1
+            if not ticket:
+                flash('El ticket no existe.', 'danger')
+                return redirect(url_for('vista_escaneo'))
 
-            restantes = ticket.total_entradas - ticket.entradas_usadas
-            if entradas_a_ingresar <= 0:
-                flash('Cantidad inválida.', 'danger')
-            elif entradas_a_ingresar > restantes:
-                flash(f'⚠️ No se pueden ingresar {entradas_a_ingresar} personas. Solo quedan {restantes} disponibles.', 'danger')
+            disponibles = ticket.total_entradas - ticket.entradas_usadas
+            
+            try:
+                ingresan = int(request.form.get('entradas_a_ingresar', 0))
+            except ValueError:
+                ingresan = 0
+
+            if ingresan <= 0 or ingresan > disponibles:
+                flash('Cantidad de ingresos no válida.', 'danger')
+                return redirect(url_for('validar_ticket', codigo=codigo))
+
+            # Actualizar contador
+            ticket.entradas_usadas += ingresan
+            
+            # Actualizar estado según cantidad restante
+            if ticket.entradas_usadas >= ticket.total_entradas:
+                ticket.estado = 'canjeado'
             else:
-                ticket.entradas_usadas += entradas_a_ingresar
-                ticket.actualizar_estado()
-                
-                # Registrar en el historial de canjes
-                canje = HistorialCanje(
-                    ticket_id=ticket.id,
-                    entradas_ingresadas=entradas_a_ingresar,
-                    validador_id=session['usuario_id']
-                )
-                db.session.add(canje)
-                db.session.commit()
-                flash(f'✅ ¡Ingreso autorizado para {entradas_a_ingresar} persona(s)! Restantes: {ticket.total_entradas - ticket.entradas_usadas}', 'success')
+                ticket.estado = 'parcial'
+
+            db.session.commit()
+            flash(f'✅ Ingreso autorizado para {ingresan} persona(s).', 'success')
+            return redirect(url_for('validar_ticket', codigo=codigo))
 
         return render_template('admin/resultado_scan.html', ticket=ticket)
-
-
     # ==========================================
     # 📊 PANEL SUPERVISOR / ADMIN GENERAL
     # ==========================================

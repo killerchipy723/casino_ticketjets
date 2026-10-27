@@ -1,0 +1,39 @@
+ body {
+            background-color: #08080c;
+            color: #fff;
+            font-family: 'Montserrat', sans-serif;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .login-card {
+            background: rgba(18, 18, 26, 0.95);
+            border: 1px solid #d4af37;
+            border-radius: 16px;
+            box-shadow: 0 0 30px rgba(212, 175, 55, 0.25);
+            width: 100%;
+            max-width: 380px;
+            padding: 30px;
+        }
+        .text-gold { color: #d4af37 !important; }
+        .btn-gold {
+            background: linear-gradient(45deg, #d4af37, #f9e076, #b38728);
+            border: none;
+            color: #000;
+            font-weight: 900;
+            text-transform: uppercase;
+            padding: 12px;
+            border-radius: 50px;
+            box-shadow: 0 0 15px rgba(212, 175, 55, 0.4);
+        }
+        .btn-gold:active { transform: scale(0.98); }
+        .form-control {
+            background-color: #08080c !important;
+            color: #fff !important;
+            border: 1px solid #d4af37 !important;
+            border-radius: 8px;
+        }
+        .form-control:focus {
+            box-shadow: 0 0 10px rgba(212, 175, 55, 0.5);
+        }
