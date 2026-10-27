@@ -13,7 +13,11 @@ from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from reportlab.lib import colors
 from reportlab.lib.utils import ImageReader
-
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors
+import qrcode
 # --- DECORADOR DE ROLES ---
 def login_required(roles=None):
     def decorator(f):
@@ -209,44 +213,129 @@ def registrar_rutas(app):
     @app.route('/rrpp/ticket/pdf/<codigo>')
     def descargar_pdf_rrpp(codigo):
         ticket = TicketQR.query.filter_by(codigo_qr=codigo).first_or_404()
+        
+        # 1. Generar código QR en memoria
+        qr_img = qrcode.make(ticket.codigo_qr)
+        qr_path = f"temp_qr_{codigo}.png"
+        qr_img.save(qr_path)
+
+        # 2. Configurar PDF (Tamaño tarjeta/recibo vertical elegante)
         buffer = io.BytesIO()
-        c = canvas.Canvas(buffer, pagesize=letter)
-        card_x, card_y, card_w, card_h = 96, 76, 420, 640
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=letter,
+            rightMargin=40, leftMargin=40,
+            topMargin=40, bottomMargin=40
+        )
         
-        c.setFillColor(colors.HexColor('#12121a'))
-        c.roundRect(card_x, card_y, card_w, card_h, 16, fill=1, stroke=0)
-        c.setStrokeColor(colors.HexColor('#d4af37'))
-        c.setLineWidth(2.5)
-        c.roundRect(card_x, card_y, card_w, card_h, 16, fill=0, stroke=1)
-        
-        c.setFillColor(colors.HexColor('#d4af37'))
-        c.setFont("Helvetica-Bold", 18)
-        c.drawCentredString(card_x + (card_w / 2), card_y + card_h - 45, "ANANA CLUB 🍍")
-        
-        c.setFillColor(colors.white)
-        c.setFont("Helvetica-Bold", 11)
-        c.drawCentredString(card_x + (card_w / 2), card_y + card_h - 70, "PASE VIP OFICIAL / RRPP")
+        story = []
+        styles = getSampleStyleSheet()
 
-        c.setFont("Helvetica-Bold", 10)
-        c.drawString(card_x + 40, card_y + card_h - 130, f"TITULAR: {ticket.titular_nombre.upper()}")
-        c.drawString(card_x + 40, card_y + card_h - 160, f"DNI: {ticket.titular_dni}")
-        c.drawString(card_x + 40, card_y + card_h - 190, f"ENTRADAS ADQUIRIDAS: {ticket.total_entradas}")
-        c.drawString(card_x + 40, card_y + card_h - 220, f"CÓDIGO: {ticket.codigo_qr}")
-
-        url_validacion = f"https://ananaclub.online/admin/validar/{ticket.codigo_qr}"
-        qr = qrcode.QRCode(version=1, box_size=10, border=2)
-        qr.add_data(url_validacion)
-        qr.make(fit=True)
-        img_qr = qr.make_image(fill_color="black", back_color="white")
-        img_buffer = io.BytesIO()
-        img_qr.save(img_buffer, format="PNG")
-        img_buffer.seek(0)
+        # Estilos personalizados Gold & Dark
+        estilo_titulo = ParagraphStyle(
+            'TituloVIP',
+            parent=styles['Normal'],
+            fontName='Helvetica-Bold',
+            fontSize=18,
+            textColor=colors.HexColor('#D4AF37'),
+            alignment=1, # Centrado
+            spaceAfter=10
+        )
         
-        c.drawImage(ImageReader(img_buffer), card_x + 135, card_y + 110, width=150, height=150)
-        c.save()
+        estilo_sub = ParagraphStyle(
+            'SubVIP',
+            parent=styles['Normal'],
+            fontName='Helvetica',
+            fontSize=10,
+            textColor=colors.HexColor('#AAAAAA'),
+            alignment=1,
+            spaceAfter=15
+        )
+
+        estilo_texto = ParagraphStyle(
+            'TextoVIP',
+            parent=styles['Normal'],
+            fontName='Helvetica',
+            fontSize=12,
+            textColor=colors.HexColor('#333333'),
+            alignment=1,
+            spaceAfter=6
+        )
+
+        estilo_codigo = ParagraphStyle(
+            'CodigoVIP',
+            parent=styles['Normal'],
+            fontName='Helvetica-Bold',
+            fontSize=14,
+            textColor=colors.HexColor('#D4AF37'),
+            alignment=1,
+            spaceAfter=10
+        )
+
+        # 3. Logo Oficial (Asegúrate de tener la ruta correcta o usar el archivo estático)
+        # Si tienes el logo en static/images/anana_logo_transparente.png:
+        logo_path = "static/images/anana_logo_transparente.png"
+        try:
+            story.append(Image(logo_path, width=120, height=60))
+            story.append(Spacer(1, 10))
+        except:
+            pass
+
+        story.append(Paragraph("ANANA CLUB — VIP PASS", estilo_titulo))
+        story.append(Paragraph("PRESENTAR ESTE QR EN PUERTA", estilo_sub))
+        story.append(Spacer(1, 10))
+
+        # 4. Imagen del Código QR en el centro
+        story.append(Image(qr_path, width=160, height=160))
+        story.append(Spacer(1, 15))
+
+        # 5. Datos del Titular dentro de una tarjeta con bordes dorados
+        data_tabla = [
+            [Paragraph(f"<b>TITULAR:</b> {ticket.titular_nombre}", estilo_texto)],
+            [Paragraph(f"<b>DNI:</b> {ticket.titular_dni}", estilo_texto)],
+            [Paragraph(f"<b>ACCESOS EN EL PACK:</b> {ticket.total_entradas} Persona(s)", estilo_texto)],
+            [Paragraph(f"<b>CÓDIGO:</b> {ticket.codigo_qr}", estilo_codigo)]
+        ]
+
+        tabla_ticket = Table(data_tabla, colWidths=[300])
+        tabla_ticket.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#FDFBF7')), # Fondo marfil muy elegante
+            ('BOX', (0,0), (-1,-1), 2, colors.HexColor('#D4AF37')),     # Marco dorado principal
+            ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#E5D8B0')),
+            ('TOPPADDING', (0,0), (-1,-1), 10),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 10),
+            ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+        ]))
+
+        story.append(tabla_ticket)
+        story.append(Spacer(1, 20))
+        
+        # Pie de página elegante
+        estilo_footer = ParagraphStyle(
+            'FooterVIP',
+            parent=styles['Normal'],
+            fontName='Helvetica-Oblique',
+            fontSize=8,
+            textColor=colors.HexColor('#888888'),
+            alignment=1
+        )
+        story.append(Paragraph("Este pase es personal e intransferible. Válido única vez según capacidad del pack.", estilo_footer))
+
+        # Construir PDF
+        doc.build(story)
+        
+        # Limpiar archivo temporal de QR
+        import os
+        if os.path.exists(qr_path):
+            os.remove(qr_path)
+
         buffer.seek(0)
-        return send_file(buffer, as_attachment=True, download_name=f"Pase_VIP_{ticket.codigo_qr}.pdf", mimetype='application/pdf')
-
+        return send_file(
+            buffer,
+            as_attachment=True,
+            download_name=f"ANANA_VIP_{ticket.codigo_qr}.pdf",
+            mimetype='application/pdf'
+        )
 
     # ==========================================
     # 📷 ESCANEO Y VALIDACIÓN PARCIAL (PUERTA)
