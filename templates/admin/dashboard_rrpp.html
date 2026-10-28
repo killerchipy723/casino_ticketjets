@@ -27,17 +27,18 @@
                  style="max-height: 50px; width: auto; object-fit: contain; filter: drop-shadow(0 0 8px rgba(212, 175, 55, 0.4));">
             <div>
                 <h5 class="text-gold fw-bold mb-0">ANANA ADMIN GENERAL</h5>
-                <small class="text-white">Gestión de Personal RRPP y Control de Entradas VIP</small>
+                <small class="text-white">Gestión de Eventos, Personal y Control VIP</small>
             </div>
         </div>
         <div class="d-flex flex-wrap gap-2">
             <a href="/admin/escaneo" class="btn btn-warning btn-sm fw-bold">📷 Escáner QR</a>
-            <button class="btn btn-gold btn-sm" data-bs-toggle="modal" data-bs-target="#modalNuevoUsuario">➕ Crear Vendedor / Rol</button>
+            <button class="btn btn-gold btn-sm" data-bs-toggle="modal" data-bs-target="#modalNuevoEvento">🎉 Crear Evento</button>
+            <button class="btn btn-outline-warning btn-sm" data-bs-toggle="modal" data-bs-target="#modalNuevoUsuario">➕ Crear Usuario</button>
             <a href="/logout" class="btn btn-outline-danger btn-sm">Salir</a>
         </div>
     </div>
 
-    <!-- MENSAJES DE ALERTA -->
+    <!-- ALERTAS -->
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
             {% for category, message in messages %}
@@ -48,9 +49,37 @@
         {% endif %}
     {% endwith %}
 
-    <!-- TABLA DE VENDEDORES REGISTRADOS -->
+    <!-- EVENTO ACTIVO DE LA NOCHE -->
+    <div class="card card-casino p-3 mb-4 border-warning">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <span class="badge bg-warning text-dark text-uppercase mb-1">Evento Activo Actual</span>
+                <h4 class="text-gold fw-bold mb-0">
+                    {% if evento_activo %}
+                        🎉 {{ evento_activo.nombre }}
+                    {% else %}
+                        ⚠️ No hay ningún evento activo configurado
+                    {% endif %}
+                </h4>
+                {% if evento_activo %}
+                    <small class="text-muted">
+                        Vigencia: 
+                        {% if evento_activo.fecha_inicio is string %}{{ evento_activo.fecha_inicio }}{% else %}{{ evento_activo.fecha_inicio.strftime('%d/%m/%Y %H:%M') }}{% endif %} hs — 
+                        {% if evento_activo.fecha_fin is string %}{{ evento_activo.fecha_fin }}{% else %}{{ evento_activo.fecha_fin.strftime('%d/%m/%Y %H:%M') }}{% endif %} hs
+                    </small>
+                {% endif %}
+            </div>
+            <div>
+                <button class="btn btn-outline-warning btn-sm text-white fw-bold" data-bs-toggle="modal" data-bs-target="#modalListaEventos">
+                    📅 Cambiar / Ver Eventos
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TABLA DE PERSONAL REGISTRADO -->
     <div class="card card-casino p-3 mb-4">
-        <h5 class="text-gold mb-3">👥 Equipo de Vendedores (RRPP / Supervisores)</h5>
+        <h5 class="text-gold mb-3">👥 Personal Registrado (RRPP, Porteros, Supervisores)</h5>
         <div class="table-responsive">
             <table class="table table-dark table-striped table-sm align-middle mb-0">
                 <thead>
@@ -68,7 +97,7 @@
                         <td><strong>{{ v.nombre_completo }}</strong></td>
                         <td><code>{{ v.username }}</code></td>
                         <td>
-                            <span class="badge {% if v.rol == 'admin' %}bg-danger{% elif v.rol == 'supervisor' %}bg-warning text-dark{% else %}bg-info text-dark{% endif %}">
+                            <span class="badge {% if v.rol == 'admin' %}bg-danger{% elif v.rol == 'supervisor' %}bg-warning text-dark{% elif v.rol == 'portero' %}bg-success{% else %}bg-info text-dark{% endif %}">
                                 {{ v.rol | upper }}
                             </span>
                         </td>
@@ -78,30 +107,41 @@
                             </span>
                         </td>
                         <td>
-                            <!-- Botón Editar -->
                             <button class="btn btn-warning btn-sm py-0 px-2" data-bs-toggle="modal" data-bs-target="#modalEditarUsuario{{ v.id }}">✏️</button>
-
-                            <!-- Botón Eliminar / Inhabilitar -->
                             {% if v.id != session.get('usuario_id') %}
                                 <a href="/admin/usuario/eliminar/{{ v.id }}" class="btn btn-danger btn-sm py-0 px-2" onclick="return confirm('¿Seguro que deseas eliminar a este usuario?')">❌</a>
                             {% endif %}
                         </td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="5" class="text-center text-white py-3">No hay vendedores registrados.</td></tr>
+                    <tr><td colspan="5" class="text-center text-white py-3">No hay usuarios registrados.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
     </div>
 
-    <!-- TABLA GLOBAL DE PASES EMITIDOS POR VENDEDORES -->
+    <!-- TABLA GLOBAL DE PASES CON FILTRO DE EVENTO -->
     <div class="card card-casino p-3">
-        <h5 class="text-gold mb-3">🎟️ Control General de Pases Emitidos</h5>
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+            <h5 class="text-gold mb-0">🎟️ Control General de Pases Emitidos</h5>
+            <form method="GET" action="/admin/dashboard" class="d-flex gap-2">
+                <select name="evento_id" class="form-select form-select-sm bg-dark text-white border-warning" onchange="this.form.submit()">
+                    <option value="">-- Filtrar por Evento --</option>
+                    {% for ev in eventos %}
+                        <option value="{{ ev.id }}" {% if evento_id_filtro == ev.id or (not evento_id_filtro and evento_activo and evento_activo.id == ev.id) %}selected{% endif %}>
+                            {{ ev.nombre }} {% if ev.es_evento_actual %}(ACTUAL){% endif %}
+                        </option>
+                    {% endfor %}
+                </select>
+            </form>
+        </div>
+
         <div class="table-responsive">
             <table class="table table-dark table-striped table-sm align-middle mb-0">
                 <thead>
                     <tr>
+                        <th>Evento</th>
                         <th>Vendedor RRPP</th>
                         <th>Titular Ticket</th>
                         <th>WhatsApp / DNI</th>
@@ -113,6 +153,7 @@
                 <tbody>
                     {% for t in tickets %}
                     <tr>
+                        <td><small class="text-info">{{ t.evento.nombre if t.evento else 'S/E' }}</small></td>
                         <td><span class="text-gold fw-bold">{{ t.vendedor.nombre_completo }}</span></td>
                         <td><strong>{{ t.titular_nombre }}</strong></td>
                         <td>
@@ -124,7 +165,9 @@
                         </td>
                         <td><code>{{ t.codigo_qr }}</code></td>
                         <td>
-                            {% if t.estado == 'pendiente' %}
+                            {% if t.estado == 'vencido' %}
+                                <span class="badge bg-danger">Vencido</span>
+                            {% elif t.estado == 'pendiente' %}
                                 <span class="badge bg-secondary">Pendiente</span>
                             {% elif t.estado == 'parcial' %}
                                 <span class="badge bg-warning text-dark">Parcial</span>
@@ -134,7 +177,7 @@
                         </td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="6" class="text-center text-white py-3">Aún no se han generado pases en el sistema.</td></tr>
+                    <tr><td colspan="7" class="text-center text-white py-3">No hay pases registrados para el evento seleccionado.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -142,54 +185,102 @@
     </div>
 </div>
 
-<!-- MODALES DINÁMICOS DE EDICIÓN PARA CADA USUARIO -->
-{% for v in vendedores %}
-<div class="modal fade" id="modalEditarUsuario{{ v.id }}" tabindex="-1">
+<!-- MODAL CREAR NUEVO EVENTO -->
+<div class="modal fade" id="modalNuevoEvento" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content bg-dark text-white border-secondary">
-            <form method="POST" action="/admin/usuario/editar/{{ v.id }}">
+            <form method="POST" action="/admin/eventos/crear">
                 <div class="modal-header">
-                    <h5 class="modal-title text-gold">Editar Usuario: {{ v.username }}</h5>
+                    <h5 class="modal-title text-gold">🎉 Crear Nuevo Evento</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body text-start">
                     <div class="mb-3">
-                        <label class="form-label">Nombre Completo</label>
-                        <input type="text" name="nombre_completo" class="form-control bg-dark text-white border-secondary" value="{{ v.nombre_completo }}" required>
+                        <label class="form-label">Nombre de la Fiesta / Evento</label>
+                        <input type="text" name="nombre" class="form-control bg-dark text-white border-secondary" placeholder="Ej: ANANA NIGHT - VIERNES 31" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Usuario para Login</label>
-                        <input type="text" name="username" class="form-control bg-dark text-white border-secondary" value="{{ v.username }}" required>
+                        <label class="form-label">Fecha y Hora de Inicio</label>
+                        <input type="datetime-local" name="fecha_inicio" class="form-control bg-dark text-white border-secondary" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Nueva Contraseña <small class="text-white">(dejar en blanco para conservar la actual)</small></label>
-                        <input type="password" name="password" class="form-control bg-dark text-white border-secondary" placeholder="••••••">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Rol de Acceso</label>
-                        <select name="rol" class="form-select bg-dark text-white border-secondary">
-                            <option value="rrpp" {% if v.rol == 'rrpp' %}selected{% endif %}>RRPP / Vendedor</option>
-                            <option value="supervisor" {% if v.rol == 'supervisor' %}selected{% endif %}>Supervisor</option>
-                            <option value="admin" {% if v.rol == 'admin' %}selected{% endif %}>Administrador General</option>
-                        </select>
+                        <label class="form-label">Fecha y Hora de Fin (Cierre / Vencimiento)</label>
+                        <input type="datetime-local" name="fecha_fin" class="form-control bg-dark text-white border-secondary" required>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="submit" class="btn btn-gold w-100">Guardar Cambios</button>
+                    <button type="submit" class="btn btn-gold w-100">Crear Evento</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
-{% endfor %}
 
-<!-- MODAL PARA CREAR NUEVO VENDEDOR / USUARIO -->
+<!-- MODAL LISTA Y ACTIVACIÓN DE EVENTOS -->
+<div class="modal fade" id="modalListaEventos" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content bg-dark text-white border-secondary">
+            <div class="modal-header">
+                <h5 class="modal-title text-gold">📅 Lista de Eventos Configurados</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="table-responsive">
+                    <table class="table table-dark table-striped align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Nombre</th>
+                                <th>Inicio</th>
+                                <th>Fin</th>
+                                <th>Estado</th>
+                                <th>Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for ev in eventos %}
+                            <tr>
+                                <td><strong>{{ ev.nombre }}</strong></td>
+                                <td>
+                                    <small>
+                                        {% if ev.fecha_inicio is string %}{{ ev.fecha_inicio }}{% else %}{{ ev.fecha_inicio.strftime('%d/%m/%Y %H:%M') }}{% endif %}
+                                    </small>
+                                </td>
+                                <td>
+                                    <small>
+                                        {% if ev.fecha_fin is string %}{{ ev.fecha_fin }}{% else %}{{ ev.fecha_fin.strftime('%d/%m/%Y %H:%M') }}{% endif %}
+                                    </small>
+                                </td>
+                                <td>
+                                    {% if ev.es_evento_actual %}
+                                        <span class="badge bg-warning text-dark">EVENTO ACTUAL</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Inactivo</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if not ev.es_evento_actual %}
+                                        <a href="/admin/eventos/activar/{{ ev.id }}" class="btn btn-sm btn-outline-warning">⭐ Activar</a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="5" class="text-center text-muted">No hay eventos guardados.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL CREAR USUARIO -->
 <div class="modal fade" id="modalNuevoUsuario" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content bg-dark text-white border-secondary">
             <form method="POST" action="/admin/usuario/agregar">
                 <div class="modal-header">
-                    <h5 class="modal-title text-gold">Registrar Personal (Vendedor / Rol)</h5>
+                    <h5 class="modal-title text-gold">Registrar Personal</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body text-start">
@@ -209,6 +300,7 @@
                         <label class="form-label">Rol de Acceso</label>
                         <select name="rol" class="form-select bg-dark text-white border-secondary">
                             <option value="rrpp" selected>RRPP / Vendedor</option>
+                            <option value="portero">Portero / Seguridad</option>
                             <option value="supervisor">Supervisor</option>
                             <option value="admin">Administrador General</option>
                         </select>
@@ -221,6 +313,48 @@
         </div>
     </div>
 </div>
+
+<!-- MODALES EDICIÓN DE USUARIOS -->
+{% for v in vendedores %}
+<div class="modal fade" id="modalEditarUsuario{{ v.id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark text-white border-secondary">
+            <form method="POST" action="/admin/usuario/editar/{{ v.id }}">
+                <div class="modal-header">
+                    <h5 class="modal-title text-gold">Editar Usuario: {{ v.username }}</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body text-start">
+                    <div class="mb-3">
+                        <label class="form-label">Nombre Completo</label>
+                        <input type="text" name="nombre_completo" class="form-control bg-dark text-white border-secondary" value="{{ v.nombre_completo }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Usuario para Login</label>
+                        <input type="text" name="username" class="form-control bg-dark text-white border-secondary" value="{{ v.username }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Nueva Contraseña <small class="text-white">(en blanco para conservar)</small></label>
+                        <input type="password" name="password" class="form-control bg-dark text-white border-secondary" placeholder="••••••">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Rol de Acceso</label>
+                        <select name="rol" class="form-select bg-dark text-white border-secondary">
+                            <option value="rrpp" {% if v.rol == 'rrpp' %}selected{% endif %}>RRPP / Vendedor</option>
+                            <option value="portero" {% if v.rol == 'portero' %}selected{% endif %}>Portero / Seguridad</option>
+                            <option value="supervisor" {% if v.rol == 'supervisor' %}selected{% endif %}>Supervisor</option>
+                            <option value="admin" {% if v.rol == 'admin' %}selected{% endif %}>Administrador General</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-gold w-100">Guardar Cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>

@@ -18,7 +18,7 @@
 
 <div class="container py-4">
     
-    <!-- BARRA SUPERIOR -->
+    <!-- BARRA SUPERIOR (EXCLUSIVA RRPP - SIN BOTÓN DE ESCANEO) -->
     <div class="d-flex flex-column flex-sm-row justify-content-between align-items-center gap-3 mb-4 card-casino p-3">
         <div class="d-flex align-items-center gap-3">
             <img src="{{ url_for('static', filename='images/anana_logo_transparente.png') }}" 
@@ -27,11 +27,13 @@
                  style="max-height: 50px; width: auto; object-fit: contain; filter: drop-shadow(0 0 8px rgba(212, 175, 55, 0.4));">
             <div>
                 <h5 class="text-gold fw-bold mb-0">Usuario: {{ session.get('usuario_nombre') }}</h5>
-                <small class="text-white">Panel de Generación de Pases y Comisiones</small>
+                <small class="text-white">Panel de Generación de Pases VIP</small>
             </div>
         </div>
-        <div class="d-flex gap-2">
-            <a href="/admin/escaneo" class="btn btn-warning btn-sm fw-bold">📷 Escanear QR (Puerta)</a>
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+            <span class="badge bg-warning text-dark px-3 py-2 fw-bold">
+                {% if evento_activo %}🎉 {{ evento_activo.nombre }}{% else %}⚠️ Sin Evento Activo{% endif %}
+            </span>
             <a href="/logout" class="btn btn-outline-danger btn-sm">Salir</a>
         </div>
     </div>
@@ -60,14 +62,17 @@
 
     <!-- BOTÓN PARA ABRIR MODAL DE NUEVO PASE -->
     <div class="mb-4">
-        <button class="btn btn-gold btn-lg w-100 py-3 fw-bold shadow" data-bs-toggle="modal" data-bs-target="#modalPase">
+        <button class="btn btn-gold btn-lg w-100 py-3 fw-bold shadow" data-bs-toggle="modal" data-bs-target="#modalPase" {% if not evento_activo %}disabled{% endif %}>
             ➕ GENERAR NUEVO PASE VIP (CON QR)
         </button>
+        {% if not evento_activo %}
+            <small class="text-danger text-center d-block mt-2">Debe haber un evento activo configurado por el Administrador para emitir pases.</small>
+        {% endif %}
     </div>
 
     <!-- TABLA DE TICKETS GENERADOS POR EL VENDEDOR -->
     <div class="card card-casino p-3">
-        <h5 class="text-gold mb-3">Mis Pases Emitidos</h5>
+        <h5 class="text-gold mb-3">Mis Pases Emitidos ({% if evento_activo %}{{ evento_activo.nombre }}{% else %}Sin Evento{% endif %})</h5>
         <div class="table-responsive">
             <table class="table table-dark table-striped table-sm align-middle mb-0">
                 <thead>
@@ -104,11 +109,11 @@
                             {% endif %}
                         </td>
                         <td>
-                            <a href="/rrpp/ticket/pdf/{{ t.codigo_qr }}" class="btn btn-sm btn-outline-warning">📥 Descargar PDF</a>
+                            <a href="/rrpp/ticket/pdf/{{ t.codigo_qr }}" target="_blank" class="btn btn-sm btn-outline-warning">📥 Descargar PDF</a>
                         </td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="6" class="text-center text-white py-3">Aún no has generado pases.</td></tr>
+                    <tr><td colspan="6" class="text-center text-white py-3">Aún no has generado pases para este evento.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>

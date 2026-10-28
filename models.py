@@ -2,16 +2,36 @@ from extensions import db
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 
-# --- MODELOS DE LA RULETA (Preservados para futuros eventos) ---
+# --- TABLA INTERMEDIA: VENDEDORES HABILITADOS EN EVENTOS ---
+eventos_vendedores = db.Table('eventos_vendedores',
+    db.Column('evento_id', db.Integer, db.ForeignKey('eventos.id'), primary_key=True),
+    db.Column('usuario_id', db.Integer, db.ForeignKey('usuarios.id'), primary_key=True)
+)
+
+# --- MODELO DE EVENTOS (FIESTAS / NOCHES) ---
 class Evento(db.Model):
     __tablename__ = 'eventos'
     id = db.Column(db.Integer, primary_key=True)
-    nombre = db.Column(db.String(100), nullable=False)
-    fecha_expiracion = db.Column(db.DateTime, nullable=False)
-    activo = db.Column(db.Boolean, default=True)
+    nombre = db.Column(db.String(150), nullable=False)
+    fecha_inicio = db.Column(db.DateTime, nullable=False)
+    fecha_fin = db.Column(db.DateTime, nullable=False)
+    estado = db.Column(db.String(20), nullable=False, default='activo') # 'activo', 'finalizado', 'pausado'
+    es_evento_actual = db.Column(db.Boolean, default=False)
+    
+    # Relaciones de Ticketing VIP
+    tickets = db.relationship('TicketQR', backref='evento', lazy=True, cascade="all, delete-orphan")
+    vendedores_asignados = db.relationship('Usuario', secondary=eventos_vendedores, backref=db.backref('eventos_asignados', lazy='dynamic'))
+
+    # Relaciones de la Ruleta (Preservados)
     premios = db.relationship('Premio', backref='evento', lazy=True, cascade="all, delete-orphan")
     ganadores = db.relationship('Ganador', backref='evento', lazy=True, cascade="all, delete-orphan")
 
+    def esta_vigente(self):
+        ahora = datetime.utcnow()
+        return self.estado == 'activo' and self.fecha_inicio <= ahora <= self.fecha_fin
+
+
+# --- MODELOS DE LA RULETA (Preservados para futuros eventos) ---
 class Premio(db.Model):
     __tablename__ = 'premios'
     id = db.Column(db.Integer, primary_key=True)
@@ -33,7 +53,7 @@ class Ganador(db.Model):
     reclamado = db.Column(db.Boolean, default=False)
 
 
-# --- NUEVOS MODELOS: SISTEMA DE RRPP Y TICKETING VIP ---
+# --- SISTEMA DE RRPP Y USUARIOS ---
 class Usuario(db.Model):
     __tablename__ = 'usuarios'
     id = db.Column(db.Integer, primary_key=True)
@@ -51,11 +71,14 @@ class Usuario(db.Model):
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
 
+
+# --- TICKETING VIP CON VINCULACIÓN A EVENTO ---
 class TicketQR(db.Model):
     __tablename__ = 'tickets_qr'
     id = db.Column(db.Integer, primary_key=True)
     codigo_qr = db.Column(db.String(50), unique=True, nullable=False, index=True)
     vendedor_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
+    evento_id = db.Column(db.Integer, db.ForeignKey('eventos.id'), nullable=False) # <--- Vinculado a Evento
     
     titular_nombre = db.Column(db.String(100), nullable=False)
     titular_dni = db.Column(db.String(20), nullable=False)
@@ -63,18 +86,22 @@ class TicketQR(db.Model):
     
     total_entradas = db.Column(db.Integer, nullable=False, default=1)
     entradas_usadas = db.Column(db.Integer, nullable=False, default=0)
-    estado = db.Column(db.String(20), nullable=False, default='pendiente') # 'pendiente', 'parcial', 'canjeado'
+    estado = db.Column(db.String(20), nullable=False, default='pendiente') # 'pendiente', 'parcial', 'canjeado', 'vencido'
     
     fecha_creacion = db.Column(db.DateTime, default=datetime.utcnow)
     historial = db.relationship('HistorialCanje', backref='ticket', lazy=True, cascade="all, delete-orphan")
 
     def actualizar_estado(self):
-        if self.entradas_usadas == 0:
+        # Validar si el evento expiró
+        if self.evento and datetime.utcnow() > self.evento.fecha_fin:
+            self.estado = 'vencido'
+        elif self.entradas_usadas == 0:
             self.estado = 'pendiente'
         elif 0 < self.entradas_usadas < self.total_entradas:
             self.estado = 'parcial'
         else:
             self.estado = 'canjeado'
+
 
 class HistorialCanje(db.Model):
     __tablename__ = 'historial_canjes'

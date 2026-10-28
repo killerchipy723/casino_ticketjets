@@ -13,11 +13,9 @@ from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from reportlab.lib import colors
 from reportlab.lib.utils import ImageReader
-from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib import colors
-import qrcode
+
 # --- DECORADOR DE ROLES ---
 def login_required(roles=None):
     def decorator(f):
@@ -40,12 +38,13 @@ def registrar_rutas(app):
     # ==========================================
     @app.route('/ruleta')
     def index():
-        evento_activo = Evento.query.filter_by(activo=True).first()
+        evento_activo = Evento.query.filter_by(es_evento_actual=True, estado='activo').first()
         premios_db = Premio.query.filter_by(evento_id=evento_activo.id, activo=True).all() if evento_activo else []
+        return render_template('index.html', premios=premios_db)
 
     @app.route('/girar', methods=['POST'])
     def girar():
-        evento_activo = Evento.query.filter_by(activo=True).first()
+        evento_activo = Evento.query.filter_by(es_evento_actual=True, estado='activo').first()
         if not evento_activo: return jsonify({"error": "No hay un evento activo."}), 400
         premios_activos = Premio.query.filter_by(evento_id=evento_activo.id, activo=True).all()
         if not premios_activos: return jsonify({"error": "No hay premios."}), 400
@@ -80,7 +79,6 @@ def registrar_rutas(app):
     @app.route('/descargar_ticket/<codigo_ticket>')
     def descargar_ticket_publico(codigo_ticket):
         ganador = Ganador.query.filter_by(codigo_ticket=codigo_ticket).first_or_404()
-        evento = Evento.query.get(ganador.evento_id)
         buffer = io.BytesIO()
         c = canvas.Canvas(buffer, pagesize=letter)
         card_x, card_y, card_w, card_h = 96, 76, 420, 640
@@ -141,18 +139,25 @@ def registrar_rutas(app):
             return redirect(url_for('admin_dashboard'))
         elif rol == 'supervisor':
             return redirect(url_for('supervisor_dashboard'))
+        elif rol == 'portero':
+            return redirect(url_for('portero_dashboard'))
         else:
             return redirect(url_for('rrpp_dashboard'))
 
 
     # ==========================================
-    # 🎟️ PANEL RRPP / VENDEDORES
+    # 🎟️ PANEL RRPP / VENDEDORES (MULTIEVENTO)
     # ==========================================
     @app.route('/rrpp')
     @login_required(roles=['rrpp', 'supervisor', 'admin'])
     def rrpp_dashboard():
         usuario_id = session.get('usuario_id')
-        tickets = TicketQR.query.filter_by(vendedor_id=usuario_id).order_by(TicketQR.fecha_creacion.desc()).all()
+        evento_activo = Evento.query.filter_by(es_evento_actual=True, estado='activo').first()
+
+        if evento_activo:
+            tickets = TicketQR.query.filter_by(vendedor_id=usuario_id, evento_id=evento_activo.id).order_by(TicketQR.fecha_creacion.desc()).all()
+        else:
+            tickets = []
         
         total_generados = len(tickets)
         total_canjeados = sum(1 for t in tickets if t.estado == 'canjeado')
@@ -160,6 +165,7 @@ def registrar_rutas(app):
 
         return render_template('rrpp/dashboard.html', 
                                tickets=tickets, 
+                               evento_activo=evento_activo,
                                total_generados=total_generados, 
                                total_canjeados=total_canjeados, 
                                total_parciales=total_parciales)
@@ -167,7 +173,10 @@ def registrar_rutas(app):
     @app.route('/rrpp/generar_pase', methods=['POST'])
     @login_required(roles=['rrpp', 'supervisor', 'admin'])
     def generar_pase():
-        # Leer datos ya sea por JSON (fetch) o formulario tradicional
+        evento_activo = Evento.query.filter_by(es_evento_actual=True, estado='activo').first()
+        if not evento_activo:
+            return jsonify({"success": False, "error": "No hay ningún evento activo configurado para emitir pases."}), 400
+
         datos_json = request.get_json(force=True, silent=True) or request.form
         
         nombre = datos_json.get('nombre')
@@ -187,6 +196,7 @@ def registrar_rutas(app):
         nuevo_ticket = TicketQR(
             codigo_qr=codigo_ticket,
             vendedor_id=session['usuario_id'],
+            evento_id=evento_activo.id,
             titular_nombre=nombre,
             titular_dni=dni,
             titular_whatsapp=whatsapp,
@@ -199,7 +209,7 @@ def registrar_rutas(app):
 
         link_pdf = url_for('descargar_pdf_rrpp', codigo=codigo_ticket, _external=True)
         mensaje = (
-            f"¡Hola {nombre}! 🎉 Aquí tienes tu Pase VIP para ANANA CLUB.\n\n"
+            f"¡Hola {nombre}! 🎉 Aquí tienes tu Pase VIP para ANANA CLUB ({evento_activo.nombre}).\n\n"
             f"🎫 Titular: {nombre}\n"
             f"👥 Cantidad de entradas: {cantidad}\n"
             f"🆔 Código: {codigo_ticket}\n\n"
@@ -209,17 +219,15 @@ def registrar_rutas(app):
         
         return jsonify({"success": True, "link_whatsapp": link_wa, "codigo_ticket": codigo_ticket})
 
-    # PDF del Pase RRPP
+    # PDF del Pase RRPP (Público para descarga desde WhatsApp)
     @app.route('/rrpp/ticket/pdf/<codigo>')
     def descargar_pdf_rrpp(codigo):
         ticket = TicketQR.query.filter_by(codigo_qr=codigo).first_or_404()
         
-        # 1. Generar código QR en memoria
         qr_img = qrcode.make(ticket.codigo_qr)
         qr_path = f"temp_qr_{codigo}.png"
         qr_img.save(qr_path)
 
-        # 2. Configurar PDF (Tamaño tarjeta/recibo vertical elegante)
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(
             buffer,
@@ -231,49 +239,30 @@ def registrar_rutas(app):
         story = []
         styles = getSampleStyleSheet()
 
-        # Estilos personalizados Gold & Dark
         estilo_titulo = ParagraphStyle(
-            'TituloVIP',
-            parent=styles['Normal'],
-            fontName='Helvetica-Bold',
-            fontSize=18,
-            textColor=colors.HexColor('#D4AF37'),
-            alignment=1, # Centrado
-            spaceAfter=10
+            'TituloVIP', parent=styles['Normal'],
+            fontName='Helvetica-Bold', fontSize=18,
+            textColor=colors.HexColor('#D4AF37'), alignment=1, spaceAfter=10
         )
         
         estilo_sub = ParagraphStyle(
-            'SubVIP',
-            parent=styles['Normal'],
-            fontName='Helvetica',
-            fontSize=10,
-            textColor=colors.HexColor('#AAAAAA'),
-            alignment=1,
-            spaceAfter=15
+            'SubVIP', parent=styles['Normal'],
+            fontName='Helvetica', fontSize=10,
+            textColor=colors.HexColor('#AAAAAA'), alignment=1, spaceAfter=15
         )
 
         estilo_texto = ParagraphStyle(
-            'TextoVIP',
-            parent=styles['Normal'],
-            fontName='Helvetica',
-            fontSize=12,
-            textColor=colors.HexColor('#333333'),
-            alignment=1,
-            spaceAfter=6
+            'TextoVIP', parent=styles['Normal'],
+            fontName='Helvetica', fontSize=12,
+            textColor=colors.HexColor('#333333'), alignment=1, spaceAfter=6
         )
 
         estilo_codigo = ParagraphStyle(
-            'CodigoVIP',
-            parent=styles['Normal'],
-            fontName='Helvetica-Bold',
-            fontSize=14,
-            textColor=colors.HexColor('#D4AF37'),
-            alignment=1,
-            spaceAfter=10
+            'CodigoVIP', parent=styles['Normal'],
+            fontName='Helvetica-Bold', fontSize=14,
+            textColor=colors.HexColor('#D4AF37'), alignment=1, spaceAfter=10
         )
 
-        # 3. Logo Oficial (Asegúrate de tener la ruta correcta o usar el archivo estático)
-        # Si tienes el logo en static/images/anana_logo_transparente.png:
         logo_path = "static/images/anana_logo_transparente.png"
         try:
             story.append(Image(logo_path, width=120, height=60))
@@ -281,15 +270,14 @@ def registrar_rutas(app):
         except:
             pass
 
-        story.append(Paragraph("ANANA CLUB — VIP PASS", estilo_titulo))
+        evento_nombre = ticket.evento.nombre if ticket.evento else "ANANA CLUB"
+        story.append(Paragraph(f"{evento_nombre} — VIP PASS", estilo_titulo))
         story.append(Paragraph("PRESENTAR ESTE QR EN PUERTA", estilo_sub))
         story.append(Spacer(1, 10))
 
-        # 4. Imagen del Código QR en el centro
         story.append(Image(qr_path, width=160, height=160))
         story.append(Spacer(1, 15))
 
-        # 5. Datos del Titular dentro de una tarjeta con bordes dorados
         data_tabla = [
             [Paragraph(f"<b>TITULAR:</b> {ticket.titular_nombre}", estilo_texto)],
             [Paragraph(f"<b>DNI:</b> {ticket.titular_dni}", estilo_texto)],
@@ -299,8 +287,8 @@ def registrar_rutas(app):
 
         tabla_ticket = Table(data_tabla, colWidths=[300])
         tabla_ticket.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#FDFBF7')), # Fondo marfil muy elegante
-            ('BOX', (0,0), (-1,-1), 2, colors.HexColor('#D4AF37')),     # Marco dorado principal
+            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#FDFBF7')),
+            ('BOX', (0,0), (-1,-1), 2, colors.HexColor('#D4AF37')),
             ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#E5D8B0')),
             ('TOPPADDING', (0,0), (-1,-1), 10),
             ('BOTTOMPADDING', (0,0), (-1,-1), 10),
@@ -310,21 +298,15 @@ def registrar_rutas(app):
         story.append(tabla_ticket)
         story.append(Spacer(1, 20))
         
-        # Pie de página elegante
         estilo_footer = ParagraphStyle(
-            'FooterVIP',
-            parent=styles['Normal'],
-            fontName='Helvetica-Oblique',
-            fontSize=8,
-            textColor=colors.HexColor('#888888'),
-            alignment=1
+            'FooterVIP', parent=styles['Normal'],
+            fontName='Helvetica-Oblique', fontSize=8,
+            textColor=colors.HexColor('#888888'), alignment=1
         )
         story.append(Paragraph("Este pase es personal e intransferible. Válido única vez según capacidad del pack.", estilo_footer))
 
-        # Construir PDF
         doc.build(story)
         
-        # Limpiar archivo temporal de QR
         import os
         if os.path.exists(qr_path):
             os.remove(qr_path)
@@ -338,23 +320,57 @@ def registrar_rutas(app):
         )
 
     # ==========================================
-    # 📷 ESCANEO Y VALIDACIÓN PARCIAL (PUERTA)
+    # 🚪 PANEL DE PORTERÍA Y SEGURIDAD
     # ==========================================
-   # --- PANTALLA DE CONTROL Y VALIDACIÓN DE QR ---
+    @app.route('/portero')
+    @login_required(roles=['portero', 'admin', 'supervisor'])
+    def portero_dashboard():
+        evento_activo = Evento.query.filter_by(es_evento_actual=True, estado='activo').first()
+        
+        if evento_activo:
+            tickets = TicketQR.query.filter_by(evento_id=evento_activo.id).all()
+        else:
+            tickets = []
+        
+        pendientes = sum(1 for t in tickets if t.estado == 'pendiente')
+        parciales = sum(1 for t in tickets if t.estado == 'parcial')
+        canjeados = sum(1 for t in tickets if t.estado == 'canjeado')
+        vencidos = sum(1 for t in tickets if t.estado == 'vencido')
+        total_pases = len(tickets)
+
+        return render_template('portero/dashboard.html',
+                               evento_activo=evento_activo,
+                               pendientes=pendientes,
+                               parciales=parciales,
+                               canjeados=canjeados,
+                               vencidos=vencidos,
+                               total_pases=total_pases)
+
+    # ==========================================
+    # 📷 ESCANEO Y VALIDACIÓN (ADMIN, SUP, PORTERO)
+    # ==========================================
     @app.route('/admin/escaneo')
-    @login_required(roles=['admin', 'supervisor', 'rrpp'])
+    @login_required(roles=['admin', 'supervisor', 'portero'])
     def vista_escaneo():
         return render_template('admin/escaneo.html')
 
     @app.route('/admin/validar/<codigo>', methods=['GET', 'POST'])
-    @login_required(roles=['admin', 'supervisor', 'rrpp'])
+    @login_required(roles=['admin', 'supervisor', 'portero'])
     def validar_ticket(codigo):
         ticket = TicketQR.query.filter_by(codigo_qr=codigo).first()
+        
+        if ticket:
+            ticket.actualizar_estado()
+            db.session.commit()
 
         if request.method == 'POST':
             if not ticket:
                 flash('El ticket no existe.', 'danger')
                 return redirect(url_for('vista_escaneo'))
+
+            if ticket.estado == 'vencido':
+                flash('❌ Este pase corresponde a un evento vencido.', 'danger')
+                return redirect(url_for('validar_ticket', codigo=codigo))
 
             disponibles = ticket.total_entradas - ticket.entradas_usadas
             
@@ -367,36 +383,91 @@ def registrar_rutas(app):
                 flash('Cantidad de ingresos no válida.', 'danger')
                 return redirect(url_for('validar_ticket', codigo=codigo))
 
-            # Actualizar contador
             ticket.entradas_usadas += ingresan
-            
-            # Actualizar estado según cantidad restante
-            if ticket.entradas_usadas >= ticket.total_entradas:
-                ticket.estado = 'canjeado'
-            else:
-                ticket.estado = 'parcial'
+            ticket.actualizar_estado()
 
             db.session.commit()
             flash(f'✅ Ingreso autorizado para {ingresan} persona(s).', 'success')
             return redirect(url_for('validar_ticket', codigo=codigo))
 
         return render_template('admin/resultado_scan.html', ticket=ticket)
+
     # ==========================================
     # 📊 PANEL SUPERVISOR / ADMIN GENERAL
     # ==========================================
     @app.route('/admin/dashboard')
     @login_required(roles=['admin', 'supervisor'])
     def admin_dashboard():
-        tickets = TicketQR.query.order_by(TicketQR.fecha_creacion.desc()).all()
-        vendedores = Usuario.query.filter_by(rol='rrpp').all()
-        return render_template('admin/dashboard_rrpp.html', tickets=tickets, vendedores=vendedores)
+        evento_id_filtro = request.args.get('evento_id', type=int)
+        eventos = Evento.query.order_by(Evento.fecha_inicio.desc()).all()
+        evento_activo = Evento.query.filter_by(es_evento_actual=True, estado='activo').first()
+
+        if evento_id_filtro:
+            tickets = TicketQR.query.filter_by(evento_id=evento_id_filtro).order_by(TicketQR.fecha_creacion.desc()).all()
+        elif evento_activo:
+            tickets = TicketQR.query.filter_by(evento_id=evento_activo.id).order_by(TicketQR.fecha_creacion.desc()).all()
+        else:
+            tickets = TicketQR.query.order_by(TicketQR.fecha_creacion.desc()).all()
+
+        vendedores = Usuario.query.filter(Usuario.rol != 'admin').all()
+        
+        return render_template('admin/dashboard_rrpp.html', 
+                               tickets=tickets, 
+                               vendedores=vendedores, 
+                               eventos=eventos, 
+                               evento_activo=evento_activo,
+                               evento_id_filtro=evento_id_filtro)
 
     @app.route('/supervisor')
     @login_required(roles=['supervisor', 'admin'])
     def supervisor_dashboard():
         return redirect(url_for('admin_dashboard'))
 
+    # --- GESTIÓN DE EVENTOS ---
+    @app.route('/admin/eventos/crear', methods=['POST'])
+    @login_required(roles=['admin'])
+    def crear_evento():
+        nombre = request.form.get('nombre')
+        f_inicio_str = request.form.get('fecha_inicio')
+        f_fin_str = request.form.get('fecha_fin')
 
+        if not nombre or not f_inicio_str or not f_fin_str:
+            flash('Todos los campos del evento son obligatorios.', 'danger')
+            return redirect(url_for('admin_dashboard'))
+
+        try:
+            f_inicio = datetime.strptime(f_inicio_str, '%Y-%m-%dT%H:%M')
+            f_fin = datetime.strptime(f_fin_str, '%Y-%m-%dT%H:%M')
+        except ValueError:
+            flash('Formato de fecha inválido.', 'danger')
+            return redirect(url_for('admin_dashboard'))
+
+        nuevo_evento = Evento(
+            nombre=nombre,
+            fecha_inicio=f_inicio,
+            fecha_fin=f_fin,
+            estado='activo',
+            es_evento_actual=False
+        )
+        db.session.add(nuevo_evento)
+        db.session.commit()
+
+        flash(f'✅ Evento "{nombre}" creado con éxito.', 'success')
+        return redirect(url_for('admin_dashboard'))
+
+    @app.route('/admin/eventos/activar/<int:evento_id>')
+    @login_required(roles=['admin'])
+    def activar_evento(evento_id):
+        Evento.query.update({Evento.es_evento_actual: False})
+        evento = Evento.query.get_or_404(evento_id)
+        evento.es_evento_actual = True
+        evento.estado = 'activo'
+        db.session.commit()
+        
+        flash(f'⭐ Evento "{evento.nombre}" marcado como evento activo actual.', 'success')
+        return redirect(url_for('admin_dashboard'))
+
+    # --- GESTIÓN DE USUARIOS ---
     @app.route('/admin/usuario/agregar', methods=['POST'])
     @login_required(roles=['admin'])
     def agregar_usuario():
@@ -411,7 +482,7 @@ def registrar_rutas(app):
 
         usuario_existente = Usuario.query.filter_by(username=username).first()
         if usuario_existente:
-            flash('El nombre de usuario ya existe. Por favor elija otro.', 'danger')
+            flash('El nombre de usuario ya existe.', 'danger')
             return redirect(url_for('admin_dashboard'))
 
         nuevo_usuario = Usuario(
@@ -424,36 +495,31 @@ def registrar_rutas(app):
         db.session.add(nuevo_usuario)
         db.session.commit()
 
-        flash(f'✅ Usuario {username} ({rol.upper()}) creado con éxito.', 'success')
+        flash(f'✅ Usuario {username} creado con éxito.', 'success')
         return redirect(url_for('admin_dashboard'))
 
-
-    # --- EDITAR USUARIO / VENDEDOR ---
     @app.route('/admin/usuario/editar/<int:id>', methods=['POST'])
     @login_required(roles=['admin'])
     def editar_usuario(id):
         usuario = Usuario.query.get_or_404(id)
-        
         nombre_completo = request.form.get('nombre_completo')
         username = request.form.get('username', '').strip()
         password = request.form.get('password', '').strip()
         rol = request.form.get('rol', 'rrpp')
 
         if not nombre_completo or not username:
-            flash('Nombre y Usuario son campos obligatorios.', 'danger')
+            flash('Nombre y Usuario son obligatorios.', 'danger')
             return redirect(url_for('admin_dashboard'))
 
-        # Verificar si cambió el username y que no esté duplicado
         usuario_existente = Usuario.query.filter(Usuario.username == username, Usuario.id != id).first()
         if usuario_existente:
-            flash('Ese nombre de usuario ya está ocupado por otra persona.', 'danger')
+            flash('Ese nombre de usuario ya está ocupado.', 'danger')
             return redirect(url_for('admin_dashboard'))
 
         usuario.nombre_completo = nombre_completo
         usuario.username = username
         usuario.rol = rol
 
-        # Cambiar contraseña únicamente si la completó
         if password:
             usuario.set_password(password)
 
@@ -461,11 +527,9 @@ def registrar_rutas(app):
         flash(f'✅ Usuario {username} actualizado correctamente.', 'success')
         return redirect(url_for('admin_dashboard'))
 
-    # --- ELIMINAR USUARIO / VENDEDOR ---
     @app.route('/admin/usuario/eliminar/<int:id>')
     @login_required(roles=['admin'])
     def eliminar_usuario(id):
-        # Evitar que el administrador se elimine a sí mismo
         if id == session.get('usuario_id'):
             flash('No puedes eliminar tu propio usuario activo.', 'danger')
             return redirect(url_for('admin_dashboard'))
