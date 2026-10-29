@@ -27,39 +27,60 @@
     </div>
 
     {% if ticket %}
-        <h4 class="text-gold fw-bold mb-1">{{ ticket.titular_nombre }}</h4>
-        <p class="text-white small mb-3">DNI: <strong>{{ ticket.titular_dni }}</strong> | RRPP: <strong>{{ ticket.vendedor.nombre_completo }}</strong></p>
-
-        <!-- ESTADO Y CANTIDAD DE ENTRADAS -->
-        <div class="mb-4">
-            {% set disponibles = ticket.total_entradas - ticket.entradas_usadas %}
+        
+        <!-- VERIFICACIÓN DE ESTADO ANULADO -->
+        {% if ticket.estado == 'anulado' %}
+            <div class="alert alert-danger py-3 mb-3 border border-danger shadow">
+                <h4 class="fw-bold text-danger mb-1">🚫 ¡PASE ANULADO!</h4>
+                <small class="text-white">Inhabilitado por la administración</small>
+            </div>
             
-            {% if disponibles > 0 %}
-                <div class="alert alert-success py-2 mb-2">
-                    <h5 class="fw-bold mb-0">VALIDO PARA INGRESO</h5>
-                </div>
-                <span class="badge bg-warning text-dark badge-ingresos">
-                    Disponibles: <strong>{{ disponibles }}</strong> de {{ ticket.total_entradas }} personas
-                </span>
-            {% else %}
-                <div class="alert alert-danger py-2 mb-2">
-                    <h5 class="fw-bold mb-0">PASE TOTALMENTE USADO</h5>
-                </div>
-                <span class="badge bg-secondary badge-ingresos">
-                    Ingresaron {{ ticket.entradas_usadas }} de {{ ticket.total_entradas }} personas
-                </span>
-            {% endif %}
-        </div>
+            <div class="bg-dark p-3 rounded border border-secondary mb-3 text-start">
+                <p class="mb-1 small">Titular: <strong class="text-gold">{{ ticket.titular_nombre }}</strong></p>
+                <p class="mb-1 small">DNI: <strong>{{ ticket.titular_dni }}</strong></p>
+                <p class="mb-0 small">RRPP: <strong>{{ ticket.vendedor.nombre_completo }}</strong></p>
+            </div>
 
-        <!-- FORMULARIO DE INGRESO PARCIAL O TOTAL -->
-        {% if disponibles > 0 %}
-            <form method="POST" action="/admin/validar/{{ ticket.codigo_qr }}">
-                <div class="mb-3 text-start">
-                    <label class="form-label small text-white">¿Cuántas personas ingresan ahora?</label>
-                    <input type="number" name="entradas_a_ingresar" class="form-control bg-dark text-white border-warning text-center fw-bold fs-5" value="{{ disponibles }}" min="1" max="{{ disponibles }}" required>
-                </div>
-                <button type="submit" class="btn btn-gold w-100 mb-3">AUTORIZAR INGRESO</button>
-            </form>
+            <div class="alert alert-warning py-2 mb-3 small text-dark fw-bold">
+                ⚠️ Este código QR ya no es válido para ingresar al evento.
+            </div>
+
+        {% else %}
+            <!-- FLUJO NORMAL DE VALIDACIÓN -->
+            <h4 class="text-gold fw-bold mb-1">{{ ticket.titular_nombre }}</h4>
+            <p class="text-white small mb-3">DNI: <strong>{{ ticket.titular_dni }}</strong> | RRPP: <strong>{{ ticket.vendedor.nombre_completo }}</strong></p>
+
+            <!-- ESTADO Y CANTIDAD DE ENTRADAS -->
+            <div class="mb-4">
+                {% set disponibles = ticket.total_entradas - ticket.entradas_usadas %}
+                
+                {% if disponibles > 0 %}
+                    <div class="alert alert-success py-2 mb-2">
+                        <h5 class="fw-bold mb-0">VALIDO PARA INGRESO</h5>
+                    </div>
+                    <span class="badge bg-warning text-dark badge-ingresos">
+                        Disponibles: <strong>{{ disponibles }}</strong> de {{ ticket.total_entradas }} personas
+                    </span>
+                {% else %}
+                    <div class="alert alert-danger py-2 mb-2">
+                        <h5 class="fw-bold mb-0">PASE TOTALMENTE USADO</h5>
+                    </div>
+                    <span class="badge bg-secondary badge-ingresos">
+                        Ingresaron {{ ticket.entradas_usadas }} de {{ ticket.total_entradas }} personas
+                    </span>
+                {% endif %}
+            </div>
+
+            <!-- FORMULARIO DE INGRESO PARCIAL O TOTAL -->
+            {% if disponibles > 0 %}
+                <form method="POST" action="/admin/validar/{{ ticket.codigo_qr }}">
+                    <div class="mb-3 text-start">
+                        <label class="form-label small text-white">¿Cuántas personas ingresan ahora?</label>
+                        <input type="number" name="entradas_a_ingresar" class="form-control bg-dark text-white border-warning text-center fw-bold fs-5" value="{{ disponibles }}" min="1" max="{{ disponibles }}" required>
+                    </div>
+                    <button type="submit" class="btn btn-gold w-100 mb-3">AUTORIZAR INGRESO</button>
+                </form>
+            {% endif %}
         {% endif %}
 
     {% else %}
