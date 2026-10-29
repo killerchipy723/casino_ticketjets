@@ -15,8 +15,9 @@ class Evento(db.Model):
     nombre = db.Column(db.String(150), nullable=False)
     fecha_inicio = db.Column(db.DateTime, nullable=False)
     fecha_fin = db.Column(db.DateTime, nullable=False)
-    estado = db.Column(db.String(20), nullable=False, default='activo') # 'activo', 'finalizado', 'pausado'
+    estado = db.Column(db.String(20), default='activo')
     es_evento_actual = db.Column(db.Boolean, default=False)
+    imagen_flyer = db.Column(db.String(255), nullable=True) # <--- Nueva columna para la imagen
     
     # Relaciones de Ticketing VIP
     tickets = db.relationship('TicketQR', backref='evento', lazy=True, cascade="all, delete-orphan")

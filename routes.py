@@ -15,6 +15,8 @@ from reportlab.lib import colors
 from reportlab.lib.utils import ImageReader
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from werkzeug.utils import secure_filename
+import os
 
 # --- DECORADOR DE ROLES ---
 def login_required(roles=None):
@@ -270,6 +272,23 @@ def registrar_rutas(app):
         except:
             pass
 
+        # --- FLYER DINÁMICO DEL EVENTO ---
+        if ticket.evento and ticket.evento.imagen_flyer:
+            flyer_path = os.path.join('static', 'uploads', ticket.evento.imagen_flyer)
+            if os.path.exists(flyer_path):
+                try:
+                    img_read = ImageReader(flyer_path)
+                    orig_w, orig_h = img_read.getSize()
+                    
+                    max_w = 180
+                    aspect_ratio = orig_h / orig_w
+                    new_h = max_w * aspect_ratio
+                    
+                    story.append(Image(flyer_path, width=max_w, height=new_h))
+                    story.append(Spacer(1, 10))
+                except Exception as e:
+                    print(f"Error al cargar flyer en PDF: {e}")
+
         evento_nombre = ticket.evento.nombre if ticket.evento else "ANANA CLUB"
         story.append(Paragraph(f"{evento_nombre} — VIP PASS", estilo_titulo))
         story.append(Paragraph("PRESENTAR ESTE QR EN PUERTA", estilo_sub))
@@ -307,7 +326,6 @@ def registrar_rutas(app):
 
         doc.build(story)
         
-        import os
         if os.path.exists(qr_path):
             os.remove(qr_path)
 
@@ -430,9 +448,20 @@ def registrar_rutas(app):
         nombre = request.form.get('nombre')
         f_inicio_str = request.form.get('fecha_inicio')
         f_fin_str = request.form.get('fecha_fin')
+        
+        imagen_filename = None
+        if 'imagen_flyer' in request.files:
+            file = request.files['imagen_flyer']
+            if file and file.filename != '':
+                filename = secure_filename(file.filename)
+                upload_folder = 'static/uploads'
+                os.makedirs(upload_folder, exist_ok=True)
+                
+                imagen_filename = f"flyer_{uuid.uuid4().hex[:6]}_{filename}"
+                file.save(os.path.join(upload_folder, imagen_filename))
 
         if not nombre or not f_inicio_str or not f_fin_str:
-            flash('Todos los campos del evento son obligatorios.', 'danger')
+            flash('Todos los campos obligatorios del evento son requeridos.', 'danger')
             return redirect(url_for('admin_dashboard'))
 
         try:
@@ -447,7 +476,8 @@ def registrar_rutas(app):
             fecha_inicio=f_inicio,
             fecha_fin=f_fin,
             estado='activo',
-            es_evento_actual=False
+            es_evento_actual=False,
+            imagen_flyer=imagen_filename
         )
         db.session.add(nuevo_evento)
         db.session.commit()
@@ -492,51 +522,3 @@ def registrar_rutas(app):
             activo=True
         )
         nuevo_usuario.set_password(password)
-        db.session.add(nuevo_usuario)
-        db.session.commit()
-
-        flash(f'✅ Usuario {username} creado con éxito.', 'success')
-        return redirect(url_for('admin_dashboard'))
-
-    @app.route('/admin/usuario/editar/<int:id>', methods=['POST'])
-    @login_required(roles=['admin'])
-    def editar_usuario(id):
-        usuario = Usuario.query.get_or_404(id)
-        nombre_completo = request.form.get('nombre_completo')
-        username = request.form.get('username', '').strip()
-        password = request.form.get('password', '').strip()
-        rol = request.form.get('rol', 'rrpp')
-
-        if not nombre_completo or not username:
-            flash('Nombre y Usuario son obligatorios.', 'danger')
-            return redirect(url_for('admin_dashboard'))
-
-        usuario_existente = Usuario.query.filter(Usuario.username == username, Usuario.id != id).first()
-        if usuario_existente:
-            flash('Ese nombre de usuario ya está ocupado.', 'danger')
-            return redirect(url_for('admin_dashboard'))
-
-        usuario.nombre_completo = nombre_completo
-        usuario.username = username
-        usuario.rol = rol
-
-        if password:
-            usuario.set_password(password)
-
-        db.session.commit()
-        flash(f'✅ Usuario {username} actualizado correctamente.', 'success')
-        return redirect(url_for('admin_dashboard'))
-
-    @app.route('/admin/usuario/eliminar/<int:id>')
-    @login_required(roles=['admin'])
-    def eliminar_usuario(id):
-        if id == session.get('usuario_id'):
-            flash('No puedes eliminar tu propio usuario activo.', 'danger')
-            return redirect(url_for('admin_dashboard'))
-
-        usuario = Usuario.query.get_or_404(id)
-        db.session.delete(usuario)
-        db.session.commit()
-
-        flash(f'🗑️ Usuario {usuario.username} eliminado correctamente.', 'success')
-        return redirect(url_for('admin_dashboard'))
