@@ -358,6 +358,7 @@ def registrar_rutas(app):
         parciales = sum(1 for t in tickets if t.estado == 'parcial')
         canjeados = sum(1 for t in tickets if t.estado == 'canjeado')
         vencidos = sum(1 for t in tickets if t.estado == 'vencido')
+        anulados = sum(1 for t in tickets if t.estado == 'anulado')
         total_pases = len(tickets)
 
         return render_template('portero/dashboard.html',
@@ -366,6 +367,7 @@ def registrar_rutas(app):
                                parciales=parciales,
                                canjeados=canjeados,
                                vencidos=vencidos,
+                               anulados=anulados,
                                total_pases=total_pases)
 
     # ==========================================
@@ -381,7 +383,8 @@ def registrar_rutas(app):
     def validar_ticket(codigo):
         ticket = TicketQR.query.filter_by(codigo_qr=codigo).first()
         
-        if ticket:
+        # Si el ticket existe y NO está anulado, actualizamos su estado por fecha/uso
+        if ticket and ticket.estado != 'anulado':
             ticket.actualizar_estado()
             db.session.commit()
 
@@ -389,6 +392,11 @@ def registrar_rutas(app):
             if not ticket:
                 flash('El ticket no existe.', 'danger')
                 return redirect(url_for('vista_escaneo'))
+
+            # Bloqueo estricto para tickets anulados
+            if ticket.estado == 'anulado':
+                flash('🚫 ESTE PASE FUE ANULADO POR LA ADMINISTRACIÓN.', 'danger')
+                return redirect(url_for('validar_ticket', codigo=codigo))
 
             if ticket.estado == 'vencido':
                 flash('❌ Este pase corresponde a un evento vencido.', 'danger')
@@ -526,3 +534,29 @@ def registrar_rutas(app):
             activo=True
         )
         nuevo_usuario.set_password(password)
+        db.session.add(nuevo_usuario)
+        db.session.commit()
+        flash('✅ Usuario registrado con éxito.', 'success')
+        return redirect(url_for('admin_dashboard'))
+
+    # --- ANULACION DE QR GENERADOS POR VENDEDORES ---
+    @app.route('/admin/vendedor/anular_pases/<int:vendedor_id>', methods=['POST'])
+    @login_required(roles=['admin', 'supervisor'])
+    def anular_pases_vendedor(vendedor_id):
+        evento_activo = Evento.query.filter_by(es_evento_actual=True, estado='activo').first()
+        if not evento_activo:
+            flash('No hay ningún evento activo configurado.', 'warning')
+            return redirect(url_for('admin_dashboard'))
+        
+        # Seleccionamos los tickets activos/pendientes/parciales de ese vendedor en este evento
+        tickets = TicketQR.query.filter_by(vendedor_id=vendedor_id, evento_id=evento_activo.id).all()
+        
+        contador = 0
+        for t in tickets:
+            if t.estado in ['pendiente', 'parcial']:
+                t.estado = 'anulado'  # <--- Asignamos el estado anulado explícito
+                contador += 1
+                
+        db.session.commit()
+        flash(f'⚠️ Se han anulado {contador} pases activos del vendedor para el evento "{evento_activo.nombre}".', 'danger')
+        return redirect(url_for('admin_dashboard'))

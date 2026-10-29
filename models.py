@@ -17,7 +17,7 @@ class Evento(db.Model):
     fecha_fin = db.Column(db.DateTime, nullable=False)
     estado = db.Column(db.String(20), default='activo')
     es_evento_actual = db.Column(db.Boolean, default=False)
-    imagen_flyer = db.Column(db.String(255), nullable=True) # <--- Nueva columna para la imagen
+    imagen_flyer = db.Column(db.String(255), nullable=True) # <--- Columna para la imagen del flyer
     
     # Relaciones de Ticketing VIP
     tickets = db.relationship('TicketQR', backref='evento', lazy=True, cascade="all, delete-orphan")
@@ -61,7 +61,7 @@ class Usuario(db.Model):
     username = db.Column(db.String(50), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
     nombre_completo = db.Column(db.String(100), nullable=False)
-    rol = db.Column(db.String(20), nullable=False, default='rrpp') # 'admin', 'supervisor', 'rrpp'
+    rol = db.Column(db.String(20), nullable=False, default='rrpp') # 'admin', 'supervisor', 'portero', 'rrpp'
     activo = db.Column(db.Boolean, default=True)
     
     tickets = db.relationship('TicketQR', backref='vendedor', lazy=True)
@@ -79,7 +79,7 @@ class TicketQR(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     codigo_qr = db.Column(db.String(50), unique=True, nullable=False, index=True)
     vendedor_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
-    evento_id = db.Column(db.Integer, db.ForeignKey('eventos.id'), nullable=False) # <--- Vinculado a Evento
+    evento_id = db.Column(db.Integer, db.ForeignKey('eventos.id'), nullable=False)
     
     titular_nombre = db.Column(db.String(100), nullable=False)
     titular_dni = db.Column(db.String(20), nullable=False)
@@ -87,12 +87,16 @@ class TicketQR(db.Model):
     
     total_entradas = db.Column(db.Integer, nullable=False, default=1)
     entradas_usadas = db.Column(db.Integer, nullable=False, default=0)
-    estado = db.Column(db.String(20), nullable=False, default='pendiente') # 'pendiente', 'parcial', 'canjeado', 'vencido'
+    estado = db.Column(db.String(20), nullable=False, default='pendiente') # 'pendiente', 'parcial', 'canjeado', 'vencido', 'anulado'
     
     fecha_creacion = db.Column(db.DateTime, default=datetime.utcnow)
     historial = db.relationship('HistorialCanje', backref='ticket', lazy=True, cascade="all, delete-orphan")
 
     def actualizar_estado(self):
+        # Si el ticket fue anulado explícitamente por el admin, no alteramos su estado
+        if self.estado == 'anulado':
+            return
+
         # Validar si el evento expiró
         if self.evento and datetime.utcnow() > self.evento.fecha_fin:
             self.estado = 'vencido'

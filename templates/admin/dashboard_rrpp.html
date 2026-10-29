@@ -107,10 +107,18 @@
                             </span>
                         </td>
                         <td>
-                            <button class="btn btn-warning btn-sm py-0 px-2" data-bs-toggle="modal" data-bs-target="#modalEditarUsuario{{ v.id }}">✏️</button>
-                            {% if v.id != session.get('usuario_id') %}
-                                <a href="/admin/usuario/eliminar/{{ v.id }}" class="btn btn-danger btn-sm py-0 px-2" onclick="return confirm('¿Seguro que deseas eliminar a este usuario?')">❌</a>
-                            {% endif %}
+                            <div class="d-flex align-items-center gap-1 flex-wrap">
+                                <button class="btn btn-warning btn-sm py-0 px-2" data-bs-toggle="modal" data-bs-target="#modalEditarUsuario{{ v.id }}" title="Editar Usuario">✏️</button>
+                                
+                                <!-- BOTÓN DE ANULAR PASES DEL VENDEDOR -->
+                                <form action="{{ url_for('anular_pases_vendedor', vendedor_id=v.id) }}" method="POST" class="d-inline" onsubmit="return confirm('¿Estás seguro de anular TODOS los pases activos de este vendedor para el evento actual?');">
+                                    <button type="submit" class="btn btn-outline-danger btn-sm py-0 px-2" title="Anular Pases Activos">🚫</button>
+                                </form>
+
+                                {% if v.id != session.get('usuario_id') %}
+                                    <a href="/admin/usuario/eliminar/{{ v.id }}" class="btn btn-danger btn-sm py-0 px-2" onclick="return confirm('¿Seguro que deseas eliminar a este usuario?')" title="Eliminar Usuario">❌</a>
+                                {% endif %}
+                            </div>
                         </td>
                     </tr>
                     {% else %}
@@ -190,33 +198,33 @@
     <div class="modal-dialog">
         <div class="modal-content bg-dark text-white border-secondary">
             <form method="POST" action="/admin/eventos/crear" enctype="multipart/form-data">
-    <div class="modal-header">
-        <h5 class="modal-title text-gold">🎉 Crear Nuevo Evento con Flyer</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-    </div>
-    <div class="modal-body text-start">
-        <div class="mb-3">
-            <label class="form-label">Nombre de la Fiesta / Evento</label>
-            <input type="text" name="nombre" class="form-control bg-dark text-white border-secondary" placeholder="Ej: ANANA NIGHT - VIERNES 31" required>
-        </div>
-        <div class="mb-3">
-            <label class="form-label">Fecha y Hora de Inicio</label>
-            <input type="datetime-local" name="fecha_inicio" class="form-control bg-dark text-white border-secondary" required>
-        </div>
-        <div class="mb-3">
-            <label class="form-label">Fecha y Hora de Fin (Cierre / Vencimiento)</label>
-            <input type="datetime-local" name="fecha_fin" class="form-control bg-dark text-white border-secondary" required>
-        </div>
-        <div class="mb-3">
-            <label class="form-label">Flyer / Imagen Promocional (PNG o JPG)</label>
-            <input type="file" name="imagen_flyer" accept="image/png, image/jpeg" class="form-control bg-dark text-white border-secondary">
-            <small class="text-muted">Se ajustará automáticamente al diseño del ticket.</small>
-        </div>
-    </div>
-    <div class="modal-footer">
-        <button type="submit" class="btn btn-gold w-100">Crear Evento con Flyer</button>
-    </div>
-</form>
+                <div class="modal-header">
+                    <h5 class="modal-title text-gold">🎉 Crear Nuevo Evento con Flyer</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body text-start">
+                    <div class="mb-3">
+                        <label class="form-label">Nombre de la Fiesta / Evento</label>
+                        <input type="text" name="nombre" class="form-control bg-dark text-white border-secondary" placeholder="Ej: ANANA NIGHT - VIERNES 31" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Fecha y Hora de Inicio</label>
+                        <input type="datetime-local" name="fecha_inicio" class="form-control bg-dark text-white border-secondary" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Fecha y Hora de Fin (Cierre / Vencimiento)</label>
+                        <input type="datetime-local" name="fecha_fin" class="form-control bg-dark text-white border-secondary" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Flyer / Imagen Promocional (PNG o JPG)</label>
+                        <input type="file" name="imagen_flyer" accept="image/png, image/jpeg" class="form-control bg-dark text-white border-secondary">
+                        <small class="text-muted">Se ajustará automáticamente al diseño del ticket.</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-gold w-100">Crear Evento con Flyer</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
