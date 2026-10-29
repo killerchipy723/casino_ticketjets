@@ -110,10 +110,17 @@
                             <div class="d-flex align-items-center gap-1 flex-wrap">
                                 <button class="btn btn-warning btn-sm py-0 px-2" data-bs-toggle="modal" data-bs-target="#modalEditarUsuario{{ v.id }}" title="Editar Usuario">✏️</button>
                                 
-                                <!-- BOTÓN DE ANULAR PASES DEL VENDEDOR -->
-                                <form action="{{ url_for('anular_pases_vendedor', vendedor_id=v.id) }}" method="POST" class="d-inline" onsubmit="return confirm('¿Estás seguro de anular TODOS los pases activos de este vendedor para el evento actual?');">
-                                    <button type="submit" class="btn btn-outline-danger btn-sm py-0 px-2" title="Anular Pases Activos">🚫</button>
-                                </form>
+                                {% if v.activo %}
+                                    <!-- SI ESTÁ ACTIVO: INHABILITAR VENDEDOR Y ANULAR SUS PASES -->
+                                    <form action="{{ url_for('anular_pases_vendedor', vendedor_id=v.id) }}" method="POST" class="d-inline" onsubmit="return confirm('¿Estás seguro de inhabilitar a este vendedor y anular TODOS sus pases del evento actual?');">
+                                        <button type="submit" class="btn btn-outline-danger btn-sm py-0 px-2" title="Inhabilitar y Anular Pases">🚫 Bloquear</button>
+                                    </form>
+                                {% else %}
+                                    <!-- SI ESTÁ INHABILITADO: REACTIVAR CUENTA -->
+                                    <form action="{{ url_for('reactivar_vendedor', vendedor_id=v.id) }}" method="POST" class="d-inline">
+                                        <button type="submit" class="btn btn-outline-success btn-sm py-0 px-2" title="Reactivar Vendedor">✅ Reactivar</button>
+                                    </form>
+                                {% endif %}
 
                                 {% if v.id != session.get('usuario_id') %}
                                     <a href="/admin/usuario/eliminar/{{ v.id }}" class="btn btn-danger btn-sm py-0 px-2" onclick="return confirm('¿Seguro que deseas eliminar a este usuario?')" title="Eliminar Usuario">❌</a>
@@ -173,7 +180,9 @@
                         </td>
                         <td><code>{{ t.codigo_qr }}</code></td>
                         <td>
-                            {% if t.estado == 'vencido' %}
+                            {% if t.estado == 'anulado' %}
+                                <span class="badge bg-danger">🚫 ANULADO</span>
+                            {% elif t.estado == 'vencido' %}
                                 <span class="badge bg-danger">Vencido</span>
                             {% elif t.estado == 'pendiente' %}
                                 <span class="badge bg-secondary">Pendiente</span>

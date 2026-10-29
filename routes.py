@@ -117,12 +117,19 @@ def registrar_rutas(app):
             username = request.form.get('username', '').strip()
             password = request.form.get('password', '').strip()
             
+            # Verificamos usuario y que esté activo
             usuario = Usuario.query.filter_by(username=username, activo=True).first()
+            
+            # Opcional: Para darle un mensaje más claro si está inhabilitado
+            usuario_inactivo = Usuario.query.filter_by(username=username, activo=False).first()
+
             if usuario and usuario.check_password(password):
                 session['usuario_id'] = usuario.id
                 session['usuario_nombre'] = usuario.nombre_completo
                 session['usuario_rol'] = usuario.rol
                 return redirect(url_for('dashboard'))
+            elif usuario_inactivo and usuario_inactivo.check_password(password):
+                flash('🚫 Tu cuenta ha sido inhabilitada por la administración.', 'danger')
             else:
                 flash('Usuario o contraseña incorrectos.', 'danger')
                 
@@ -540,6 +547,7 @@ def registrar_rutas(app):
         return redirect(url_for('admin_dashboard'))
 
     # --- ANULACION DE QR GENERADOS POR VENDEDORES ---
+    # --- ANULACIÓN DE QR Y BLOQUEO DE VENDEDOR ---
     @app.route('/admin/vendedor/anular_pases/<int:vendedor_id>', methods=['POST'])
     @login_required(roles=['admin', 'supervisor'])
     def anular_pases_vendedor(vendedor_id):
@@ -548,15 +556,46 @@ def registrar_rutas(app):
             flash('No hay ningún evento activo configurado.', 'warning')
             return redirect(url_for('admin_dashboard'))
         
-        # Seleccionamos los tickets activos/pendientes/parciales de ese vendedor en este evento
+        # 1. Inhabilitamos al vendedor para que no pueda seguir emitiendo pases
+        vendedor = Usuario.query.get_or_404(vendedor_id)
+        vendedor.activo = False
+
+        # 2. Anulamos todos los tickets activos/pendientes/parciales del vendedor para este evento
         tickets = TicketQR.query.filter_by(vendedor_id=vendedor_id, evento_id=evento_activo.id).all()
         
         contador = 0
         for t in tickets:
             if t.estado in ['pendiente', 'parcial']:
-                t.estado = 'anulado'  # <--- Asignamos el estado anulado explícito
+                t.estado = 'anulado'
                 contador += 1
                 
         db.session.commit()
-        flash(f'⚠️ Se han anulado {contador} pases activos del vendedor para el evento "{evento_activo.nombre}".', 'danger')
+        flash(f'⛔ Se inhabilitó al vendedor {vendedor.nombre_completo} y se anularon sus {contador} pases activos.', 'danger')
+        return redirect(url_for('admin_dashboard'))
+
+    #DESACTIVAR USUARIO 
+    @app.route('/admin/usuario/toggle_activo/<int:usuario_id>')
+    @login_required(roles=['admin'])
+    def toggle_activo_usuario(usuario_id):
+        usuario = Usuario.query.get_or_404(usuario_id)
+        if usuario.id == session.get('usuario_id'):
+            flash('No puedes desactivar tu propia cuenta.', 'danger')
+            return redirect(url_for('admin_dashboard'))
+        
+        usuario.activo = not usuario.activo
+        db.session.commit()
+        
+        estado_txt = "activado" if usuario.activo else "inhabilitado"
+        flash(f'👤 El usuario {usuario.nombre_completo} ha sido {estado_txt}.', 'warning')
+        return redirect(url_for('admin_dashboard'))
+
+    # ACTIVAR USUARIO
+    @app.route('/admin/vendedor/reactivar/<int:vendedor_id>', methods=['POST'])
+    @login_required(roles=['admin', 'supervisor'])
+    def reactivar_vendedor(vendedor_id):
+        vendedor = Usuario.query.get_or_404(vendedor_id)
+        vendedor.activo = True
+        db.session.commit()
+        
+        flash(f'✅ El vendedor {vendedor.nombre_completo} ha sido reactivado y ya puede ingresar a emitir pases.', 'success')
         return redirect(url_for('admin_dashboard'))
