@@ -317,13 +317,17 @@ def registrar_rutas(app):
         story.append(tabla_ticket)
         story.append(Spacer(1, 20))
         
+        # Obtenemos las fechas formateadas del evento activo o asignado al ticket
+        f_inicio_fmt = ticket.evento.fecha_inicio.strftime('%d/%m/%Y a las %H:%M hs') if ticket.evento else "Fecha indicada"
+        f_fin_fmt = ticket.evento.fecha_fin.strftime('%d/%m/%Y a las %H:%M hs') if ticket.evento else "Hora indicada"
+
         estilo_footer = ParagraphStyle(
             'FooterVIP', parent=styles['Normal'],
             fontName='Helvetica-Oblique', fontSize=8,
             textColor=colors.HexColor('#888888'), alignment=1
         )
-        story.append(Paragraph("Este pase es personal e intransferible. Válido única vez según capacidad del pack.", estilo_footer))
-
+        texto_leyenda = f"Este pase es personal e intransferible. Válido **únicamente para el día del evento** indicado: del {f_inicio_fmt} al {f_fin_fmt}. Uso único según capacidad del pack."
+        story.append(Paragraph(texto_leyenda, estilo_footer))
         doc.build(story)
         
         if os.path.exists(qr_path):
