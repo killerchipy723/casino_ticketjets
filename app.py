@@ -30,8 +30,10 @@ with app.app_context():
     if Evento.query.count() == 0:
         evento_demo = Evento(
             nombre="Noche de Casino - Inauguración",
-            fecha_expiracion=datetime.now() + timedelta(days=1),
-            activo=True
+            fecha_inicio=datetime.now(),
+            fecha_fin=datetime.now() + timedelta(days=1),
+            estado='activo',
+            es_evento_actual=True
         )
         db.session.add(evento_demo)
         db.session.commit()
