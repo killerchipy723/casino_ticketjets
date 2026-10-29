@@ -32,7 +32,8 @@
         </div>
         <div class="d-flex flex-wrap gap-2">
             <a href="/admin/escaneo" class="btn btn-warning btn-sm fw-bold">📷 Escáner QR</a>
-            <button class="btn btn-gold btn-sm" data-bs-toggle="modal" data-bs-target="#modalNuevoEvento">🎉 Crear Evento</button>
+            <button class="btn btn-gold btn-sm" data-bs-toggle="modal" data-bs-target="#modalNuevoPaseCortesia">🎟️ Emitir Cortesía VIP</button>
+            <button class="btn btn-outline-warning btn-sm" data-bs-toggle="modal" data-bs-target="#modalNuevoEvento">🎉 Crear Evento</button>
             <button class="btn btn-outline-warning btn-sm" data-bs-toggle="modal" data-bs-target="#modalNuevoUsuario">➕ Crear Usuario</button>
             <a href="/logout" class="btn btn-outline-danger btn-sm">Salir</a>
         </div>
@@ -162,7 +163,7 @@
                         <th>WhatsApp / DNI</th>
                         <th>Ingresos</th>
                         <th>Código QR</th>
-                        <th>Estado</th>
+                        <th>Tipo / Estado</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -170,7 +171,12 @@
                     <tr>
                         <td><small class="text-info">{{ t.evento.nombre if t.evento else 'S/E' }}</small></td>
                         <td><span class="text-gold fw-bold">{{ t.vendedor.nombre_completo }}</span></td>
-                        <td><strong>{{ t.titular_nombre }}</strong></td>
+                        <td>
+                            <strong>{{ t.titular_nombre }}</strong>
+                            {% if t.es_cortesia %}
+                                <br><span class="badge bg-warning text-dark" style="font-size: 0.65rem;">✨ CORTESÍA VIP</span>
+                            {% endif %}
+                        </td>
                         <td>
                             {{ t.titular_dni }}<br>
                             <small class="text-white">{{ t.titular_whatsapp }}</small>
@@ -198,6 +204,47 @@
                     {% endfor %}
                 </tbody>
             </table>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL EMITIR CORTESÍA VIP (ADMIN) -->
+<div class="modal fade" id="modalNuevoPaseCortesia" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark text-white border-warning">
+            <form id="formCortesiaAdmin">
+                <div class="modal-header">
+                    <h5 class="modal-title text-gold">🎟️ Emitir Pase de Cortesía (Sin Vencimiento)</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body text-start">
+                    <div class="mb-3">
+                        <label class="form-label">Nombre del Titular</label>
+                        <input type="text" name="nombre" class="form-control bg-dark text-white border-secondary" placeholder="Ej: Juan Pérez" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">DNI</label>
+                        <input type="text" name="dni" class="form-control bg-dark text-white border-secondary" placeholder="30123456" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">WhatsApp (sin 0 y sin 15)</label>
+                        <input type="text" name="whatsapp" class="form-control bg-dark text-white border-secondary" placeholder="3876123456" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Cantidad de Ingresos</label>
+                        <input type="number" name="cantidad" value="1" min="1" class="form-control bg-dark text-white border-secondary" required>
+                    </div>
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input bg-warning border-warning" type="checkbox" name="es_cortesia" value="true" id="checkCortesia" checked onclick="return false;">
+                        <label class="form-check-label text-warning fw-bold" for="checkCortesia">
+                            ✨ Pase de Cortesía (Ignora límite de horario)
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-gold w-100">Generar y Enviar por WhatsApp</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -379,5 +426,31 @@
 {% endfor %}
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+document.getElementById('formCortesiaAdmin').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    const data = Object.fromEntries(formData.entries());
+    data.es_cortesia = true;
+    
+    fetch('/rrpp/generar_pase', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    })
+    .then(r => r.json())
+    .then(res => {
+        if(res.success) {
+            window.open(res.link_whatsapp, '_blank');
+            location.reload();
+        } else {
+            alert(res.error || 'Error al emitir pase de cortesía');
+        }
+    })
+    .catch(err => {
+        alert('Error de conexión al emitir la cortesía.');
+    });
+});
+</script>
 </body>
 </html>

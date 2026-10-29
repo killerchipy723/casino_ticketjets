@@ -184,7 +184,7 @@ def registrar_rutas(app):
     def generar_pase():
         evento_activo = Evento.query.filter_by(es_evento_actual=True, estado='activo').first()
         if not evento_activo:
-            return jsonify({"success": False, "error": "No hay ningún evento activo configurado para emitir pases."}), 400
+            return jsonify({"success": False, "error": "No hay ningún evento activo configurado."}), 400
 
         datos_json = request.get_json(force=True, silent=True) or request.form
         
@@ -196,6 +196,11 @@ def registrar_rutas(app):
             cantidad = int(datos_json.get('cantidad', 1))
         except (ValueError, TypeError):
             cantidad = 1
+
+        # Control estricto: Solo Admin/Supervisor pueden emitir Cortesías
+        rol_usuario = session.get('usuario_rol')
+        es_cortesia_req = datos_json.get('es_cortesia') in [True, 'true', '1', 'on']
+        es_cortesia_final = es_cortesia_req if rol_usuario in ['admin', 'supervisor'] else False
 
         if not nombre or not dni or not whatsapp or cantidad < 1:
             return jsonify({"success": False, "error": "Todos los campos son obligatorios."}), 400
@@ -211,18 +216,21 @@ def registrar_rutas(app):
             titular_whatsapp=whatsapp,
             total_entradas=cantidad,
             entradas_usadas=0,
-            estado='pendiente'
+            estado='pendiente',
+            es_cortesia=es_cortesia_final # <--- Se asigna según rol
         )
         db.session.add(nuevo_ticket)
         db.session.commit()
 
         link_pdf = url_for('descargar_pdf_rrpp', codigo=codigo_ticket, _external=True)
+        
+        tipo_pass = "PASE DE CORTESÍA (VIP SIN LÍMITE HORARIO)" if es_cortesia_final else "Pase VIP"
         mensaje = (
-            f"¡Hola {nombre}! 🎉 Aquí tienes tu Pase VIP para ANANA CLUB ({evento_activo.nombre}).\n\n"
+            f"¡Hola {nombre}! 🎉 Aquí tienes tu {tipo_pass} para ANANA CLUB ({evento_activo.nombre}).\n\n"
             f"🎫 Titular: {nombre}\n"
             f"👥 Cantidad de entradas: {cantidad}\n"
             f"🆔 Código: {codigo_ticket}\n\n"
-            f"Descarga tu ticket digital con QR aquí:\n{link_pdf}"
+            f"Descarga tu ticket digital aquí:\n{link_pdf}"
         )
         link_wa = f"https://wa.me/{whatsapp}?text={urllib.parse.quote(mensaje)}"
         

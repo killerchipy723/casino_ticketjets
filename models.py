@@ -87,18 +87,18 @@ class TicketQR(db.Model):
     
     total_entradas = db.Column(db.Integer, nullable=False, default=1)
     entradas_usadas = db.Column(db.Integer, nullable=False, default=0)
-    estado = db.Column(db.String(20), nullable=False, default='pendiente') # 'pendiente', 'parcial', 'canjeado', 'vencido', 'anulado'
+    estado = db.Column(db.String(20), nullable=False, default='pendiente')
+    es_cortesia = db.Column(db.Boolean, default=False) # <--- NUEVA COLUMNA CORTESÍA
     
     fecha_creacion = db.Column(db.DateTime, default=datetime.utcnow)
     historial = db.relationship('HistorialCanje', backref='ticket', lazy=True, cascade="all, delete-orphan")
 
     def actualizar_estado(self):
-        # Si el ticket fue anulado explícitamente por el admin, no alteramos su estado
         if self.estado == 'anulado':
             return
 
-        # Validar si el evento expiró
-        if self.evento and datetime.utcnow() > self.evento.fecha_fin:
+        # Si NO es cortesía y la fecha del evento terminó, vence
+        if not self.es_cortesia and self.evento and datetime.utcnow() > self.evento.fecha_fin:
             self.estado = 'vencido'
         elif self.entradas_usadas == 0:
             self.estado = 'pendiente'
