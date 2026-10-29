@@ -237,6 +237,7 @@ def registrar_rutas(app):
         return jsonify({"success": True, "link_whatsapp": link_wa, "codigo_ticket": codigo_ticket})
 
     # PDF del Pase RRPP (Público para descarga desde WhatsApp)
+    # PDF del Pase (Público para descarga desde WhatsApp)
     @app.route('/rrpp/ticket/pdf/<codigo>')
     def descargar_pdf_rrpp(codigo):
         ticket = TicketQR.query.filter_by(codigo_qr=codigo).first_or_404()
@@ -256,28 +257,40 @@ def registrar_rutas(app):
         story = []
         styles = getSampleStyleSheet()
 
+        # 🎨 ESQUEMA DE COLORES DINÁMICO (Gold vs Silver)
+        if ticket.es_cortesia:
+            color_principal = colors.HexColor('#A6A6A6')      # Plateado Principal
+            color_borde = colors.HexColor('#CCCCCC')          # Borde Silver
+            color_fondo = colors.HexColor('#F5F5F7')          # Fondo Gris Platino
+            titulo_texto = "CORTESÍA SPECIAL PASS ✨"
+        else:
+            color_principal = colors.HexColor('#D4AF37')      # Dorado Principal
+            color_borde = colors.HexColor('#E5D8B0')          # Borde Gold
+            color_fondo = colors.HexColor('#FDFBF7')          # Fondo Gold Warm
+            titulo_texto = "VIP PASS 🎫"
+
         estilo_titulo = ParagraphStyle(
             'TituloVIP', parent=styles['Normal'],
             fontName='Helvetica-Bold', fontSize=18,
-            textColor=colors.HexColor('#D4AF37'), alignment=1, spaceAfter=10
+            textColor=color_principal, alignment=1, spaceAfter=10
         )
         
         estilo_sub = ParagraphStyle(
             'SubVIP', parent=styles['Normal'],
             fontName='Helvetica', fontSize=10,
-            textColor=colors.HexColor('#AAAAAA'), alignment=1, spaceAfter=15
+            textColor=colors.HexColor('#888888'), alignment=1, spaceAfter=15
         )
 
         estilo_texto = ParagraphStyle(
             'TextoVIP', parent=styles['Normal'],
             fontName='Helvetica', fontSize=12,
-            textColor=colors.HexColor('#333333'), alignment=1, spaceAfter=6
+            textColor=colors.HexColor('#222222'), alignment=1, spaceAfter=6
         )
 
         estilo_codigo = ParagraphStyle(
             'CodigoVIP', parent=styles['Normal'],
             fontName='Helvetica-Bold', fontSize=14,
-            textColor=colors.HexColor('#D4AF37'), alignment=1, spaceAfter=10
+            textColor=color_principal, alignment=1, spaceAfter=10
         )
 
         logo_path = "static/images/anana_logo_transparente.png"
@@ -305,7 +318,7 @@ def registrar_rutas(app):
                     print(f"Error al cargar flyer en PDF: {e}")
 
         evento_nombre = ticket.evento.nombre if ticket.evento else "ANANA CLUB"
-        story.append(Paragraph(f"{evento_nombre} — VIP PASS", estilo_titulo))
+        story.append(Paragraph(f"{evento_nombre} — {titulo_texto}", estilo_titulo))
         story.append(Paragraph("PRESENTAR ESTE QR EN PUERTA", estilo_sub))
         story.append(Spacer(1, 10))
 
@@ -321,9 +334,9 @@ def registrar_rutas(app):
 
         tabla_ticket = Table(data_tabla, colWidths=[300])
         tabla_ticket.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#FDFBF7')),
-            ('BOX', (0,0), (-1,-1), 2, colors.HexColor('#D4AF37')),
-            ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#E5D8B0')),
+            ('BACKGROUND', (0,0), (-1,-1), color_fondo),
+            ('BOX', (0,0), (-1,-1), 2, color_principal),
+            ('INNERGRID', (0,0), (-1,-1), 0.5, color_borde),
             ('TOPPADDING', (0,0), (-1,-1), 10),
             ('BOTTOMPADDING', (0,0), (-1,-1), 10),
             ('ALIGN', (0,0), (-1,-1), 'CENTER'),
@@ -332,16 +345,21 @@ def registrar_rutas(app):
         story.append(tabla_ticket)
         story.append(Spacer(1, 20))
         
-        # Obtenemos las fechas formateadas del evento activo o asignado al ticket
+        # Leyenda Footer diferenciada
         f_inicio_fmt = ticket.evento.fecha_inicio.strftime('%d/%m/%Y a las %H:%M hs') if ticket.evento else "Fecha indicada"
         f_fin_fmt = ticket.evento.fecha_fin.strftime('%d/%m/%Y a las %H:%M hs') if ticket.evento else "Hora indicada"
 
         estilo_footer = ParagraphStyle(
             'FooterVIP', parent=styles['Normal'],
             fontName='Helvetica-Oblique', fontSize=8,
-            textColor=colors.HexColor('#888888'), alignment=1
+            textColor=colors.HexColor('#666666'), alignment=1
         )
-        texto_leyenda = f"Este pase es personal e intransferible. Válido **únicamente para el día del evento** indicado: del {f_inicio_fmt} al {f_fin_fmt}. Uso único según capacidad del pack."
+        
+        if ticket.es_cortesia:
+            texto_leyenda = f"✨ **PASE DE CORTESÍA VIP**: Pase personal e intransferible. Válido para el evento ({f_inicio_fmt}). **Sin restricción de horario de ingreso**."
+        else:
+            texto_leyenda = f"Este pase es personal e intransferible. Válido únicamente dentro del horario del evento indicado: del {f_inicio_fmt} al {f_fin_fmt}."
+        
         story.append(Paragraph(texto_leyenda, estilo_footer))
         doc.build(story)
         
@@ -349,10 +367,11 @@ def registrar_rutas(app):
             os.remove(qr_path)
 
         buffer.seek(0)
+        prefix = "CORTESIA_VIP" if ticket.es_cortesia else "ANANA_VIP"
         return send_file(
             buffer,
             as_attachment=True,
-            download_name=f"ANANA_VIP_{ticket.codigo_qr}.pdf",
+            download_name=f"{prefix}_{ticket.codigo_qr}.pdf",
             mimetype='application/pdf'
         )
 
