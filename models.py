@@ -115,3 +115,32 @@ class HistorialCanje(db.Model):
     entradas_ingresadas = db.Column(db.Integer, nullable=False)
     validador_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
     fecha_canje = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+# -------------------------------------- MÓDULO AUTOGESTIÓN DE BARRA -----------------------------------------
+class ProductoBarra(db.Model):
+    __tablename__ = 'productos_barra'
+    id = db.Column(db.Integer, primary_key=True)
+    nombre = db.Column(db.String(100), nullable=False)
+    precio = db.Column(db.Float, nullable=False)
+    categoria = db.Column(db.String(50), default='bebida') # 'trago', 'cerveza', 'sin_alcohol'
+    activo = db.Column(db.Boolean, default=True)
+
+class PedidoBarra(db.Model):
+    __tablename__ = 'pedidos_barra'
+    id = db.Column(db.Integer, primary_key=True)
+    evento_id = db.Column(db.Integer, db.ForeignKey('eventos.id'), nullable=False)
+    
+    cliente_nombre = db.Column(db.String(100), nullable=False)
+    cliente_telefono = db.Column(db.String(30), nullable=False)
+    
+    detalle_productos = db.Column(db.Text, nullable=False) # Guardará el JSON del carrito
+    monto_total = db.Column(db.Float, nullable=False)
+    
+    estado_pago = db.Column(db.String(20), default='pendiente') # 'pendiente', 'aprobado', 'rechazado'
+    preference_id = db.Column(db.String(100), nullable=True)
+    payment_id = db.Column(db.String(100), nullable=True)
+    
+    codigo_retiro = db.Column(db.String(50), unique=True, nullable=False, index=True)
+    entregado = db.Column(db.Boolean, default=False)
+    fecha_creacion = db.Column(db.DateTime, default=datetime.utcnow)
