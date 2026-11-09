@@ -17,7 +17,7 @@ class Evento(db.Model):
     fecha_fin = db.Column(db.DateTime, nullable=False)
     estado = db.Column(db.String(20), default='activo')
     es_evento_actual = db.Column(db.Boolean, default=False)
-    imagen_flyer = db.Column(db.String(255), nullable=True) # <--- Columna para la imagen del flyer
+    imagen_flyer = db.Column(db.String(255), nullable=True)
     
     # Relaciones de Ticketing VIP
     tickets = db.relationship('TicketQR', backref='evento', lazy=True, cascade="all, delete-orphan")
@@ -28,7 +28,7 @@ class Evento(db.Model):
     ganadores = db.relationship('Ganador', backref='evento', lazy=True, cascade="all, delete-orphan")
 
     def esta_vigente(self):
-        ahora = datetime.utcnow()
+        ahora = datetime.now()  # <--- Hora local en lugar de UTC
         return self.estado == 'activo' and self.fecha_inicio <= ahora <= self.fecha_fin
 
 
@@ -50,7 +50,7 @@ class Ganador(db.Model):
     telefono = db.Column(db.String(30), nullable=False)
     premio = db.Column(db.String(100), nullable=False)
     codigo_ticket = db.Column(db.String(50), unique=True, nullable=False)
-    fecha = db.Column(db.DateTime, default=datetime.utcnow)
+    fecha = db.Column(db.DateTime, default=datetime.now)  # <--- Hora local
     reclamado = db.Column(db.Boolean, default=False)
 
 
@@ -61,7 +61,7 @@ class Usuario(db.Model):
     username = db.Column(db.String(50), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
     nombre_completo = db.Column(db.String(100), nullable=False)
-    rol = db.Column(db.String(20), nullable=False, default='rrpp') # 'admin', 'supervisor', 'portero', 'rrpp'
+    rol = db.Column(db.String(20), nullable=False, default='rrpp')
     activo = db.Column(db.Boolean, default=True)
     
     tickets = db.relationship('TicketQR', backref='vendedor', lazy=True)
@@ -88,17 +88,17 @@ class TicketQR(db.Model):
     total_entradas = db.Column(db.Integer, nullable=False, default=1)
     entradas_usadas = db.Column(db.Integer, nullable=False, default=0)
     estado = db.Column(db.String(20), nullable=False, default='pendiente')
-    es_cortesia = db.Column(db.Boolean, default=False) # <--- NUEVA COLUMNA CORTESÍA
+    es_cortesia = db.Column(db.Boolean, default=False)
     
-    fecha_creacion = db.Column(db.DateTime, default=datetime.utcnow)
+    fecha_creacion = db.Column(db.DateTime, default=datetime.now)  # <--- Hora local
     historial = db.relationship('HistorialCanje', backref='ticket', lazy=True, cascade="all, delete-orphan")
 
     def actualizar_estado(self):
         if self.estado == 'anulado':
             return
 
-        # Si NO es cortesía y la fecha del evento terminó, vence
-        if not self.es_cortesia and self.evento and datetime.utcnow() > self.evento.fecha_fin:
+        # Validación de vencimiento contra la hora local
+        if not self.es_cortesia and self.evento and datetime.now() > self.evento.fecha_fin:
             self.estado = 'vencido'
         elif self.entradas_usadas == 0:
             self.estado = 'pendiente'
@@ -114,4 +114,4 @@ class HistorialCanje(db.Model):
     ticket_id = db.Column(db.Integer, db.ForeignKey('tickets_qr.id'), nullable=False)
     entradas_ingresadas = db.Column(db.Integer, nullable=False)
     validador_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
-    fecha_canje = db.Column(db.DateTime, default=datetime.utcnow)
+    fecha_canje = db.Column(db.DateTime, default=datetime.now)  # <--- Hora local
