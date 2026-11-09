@@ -45,6 +45,26 @@
                 ⚠️ Este código QR ya no es válido para ingresar al evento.
             </div>
 
+        <!-- VERIFICACIÓN DE ESTADO VENCIDO (NUEVO) -->
+        {% elif ticket.estado == 'vencido' %}
+            <div class="alert alert-danger py-3 mb-3 border border-danger shadow">
+                <h4 class="fw-bold text-danger mb-1">⛔ PASE VENCIDO</h4>
+                <small class="text-white">El tiempo de ingreso para este evento ha finalizado</small>
+            </div>
+            
+            <div class="bg-dark p-3 rounded border border-secondary mb-3 text-start">
+                <p class="mb-1 small">Titular: <strong class="text-gold">{{ ticket.titular_nombre }}</strong></p>
+                <p class="mb-1 small">DNI: <strong>{{ ticket.titular_dni }}</strong></p>
+                {% if ticket.evento %}
+                    <p class="mb-1 small">Evento: <strong class="text-gold">{{ ticket.evento.nombre }}</strong></p>
+                    <p class="mb-0 small">Finalizó el: <strong>{{ ticket.evento.fecha_fin.strftime('%d/%m/%Y a las %H:%M') }} hs</strong></p>
+                {% endif %}
+            </div>
+
+            <div class="alert alert-warning py-2 mb-3 small text-dark fw-bold">
+                ⚠️ No se puede autorizar el ingreso porque la fiesta ya concluyó.
+            </div>
+
         {% else %}
             <!-- FLUJO NORMAL DE VALIDACIÓN -->
             <h4 class="text-gold fw-bold mb-1">{{ ticket.titular_nombre }}</h4>
