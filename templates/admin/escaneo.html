@@ -13,8 +13,10 @@
         .card-casino { background: #12121a; border: 1px solid #d4af37; border-radius: 16px; box-shadow: 0 0 30px rgba(212, 175, 55, 0.2); width: 100%; max-width: 420px; padding: 25px; }
         .text-gold { color: #d4af37 !important; }
         .btn-gold { background: linear-gradient(45deg, #d4af37, #f9e076, #b38728); border: none; color: #000; font-weight: 900; text-transform: uppercase; padding: 12px; border-radius: 50px; }
+        .btn-outline-gold { border: 1px solid #d4af37; color: #d4af37; font-weight: 700; text-transform: uppercase; padding: 10px; border-radius: 50px; background: transparent; }
+        .btn-outline-gold:hover { background: #d4af37; color: #000; }
         .form-control { background-color: #08080c !important; color: #fff !important; border: 1px solid #d4af37 !important; border-radius: 8px; text-align: center; }
-        #video-container { position: relative; width: 100%; height: 280px; background: #000; border: 2px solid #d4af37; border-radius: 12px; overflow: hidden; margin-bottom: 15px; }
+        #video-container { position: relative; width: 100%; height: 280px; background: #000; border: 2px solid #d4af37; border-radius: 12px; overflow: hidden; margin-bottom: 15px; display: none; }
         video { width: 100%; height: 100%; object-fit: cover; }
         .scan-laser { position: absolute; top: 50%; left: 10%; right: 10%; height: 2px; background: #ff3333; box-shadow: 0 0 8px #ff3333; animation: scan 2s infinite linear; }
         @keyframes scan { 0% { top: 15%; } 50% { top: 85%; } 100% { top: 15%; } }
@@ -31,12 +33,22 @@
     </div>
 
     <h5 class="text-gold fw-bold mb-1">CONTROL DE PUERTA</h5>
-    <p class="text-white small mb-3">Apunta la cámara trasera al código QR</p>
+    <p class="text-white small mb-3">Escanea el código QR del pase VIP</p>
 
-    <!-- VÍDEO NATIVO DE LA CÁMARA TRASERA -->
+    <!-- BOTÓN PARA INICIAR EL ESCANEO -->
+    <div id="btn-iniciar-container" class="mb-3">
+        <button type="button" class="btn btn-gold w-100" onclick="iniciarCamara()">📷 Iniciar Escaneo</button>
+    </div>
+
+    <!-- VÍDEO NATIVO DE LA CÁMARA TRASERA (Oculto al inicio) -->
     <div id="video-container">
         <video id="preview" playsinline></video>
         <div class="scan-laser"></div>
+    </div>
+
+    <!-- BOTÓN PARA DETENER / REINICIAR (Aparece solo cuando la cámara está activa) -->
+    <div id="btn-detener-container" class="mb-3" style="display: none;">
+        <button type="button" class="btn btn-outline-gold w-100 btn-sm" onclick="detenerCamara()">🔄 Detener / Escanear otro</button>
     </div>
 
     <div class="text-white small mb-2">— O ingreso manual —</div>
@@ -60,20 +72,46 @@
     const video = document.getElementById('preview');
     const canvasElement = document.getElementById('canvas');
     const canvas = canvasElement.getContext('2d', { willReadFrequently: true });
-    let scanning = true;
+    const videoContainer = document.getElementById('video-container');
+    const btnIniciarContainer = document.getElementById('btn-iniciar-container');
+    const btnDetenerContainer = document.getElementById('btn-detener-container');
+    
+    let scanning = false;
+    let currentStream = null;
 
-    // Forzar cámara trasera en dispositivos móviles (facingMode: environment)
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
-    .then(function(stream) {
-        video.srcObject = stream;
-        video.setAttribute("playsinline", true); // Requerido para iOS/Android
-        video.play();
-        requestAnimationFrame(tick);
-    })
-    .catch(function(err) {
-        console.error("Error al acceder a la cámara: ", err);
-        alert("No se pudo acceder a la cámara. Usa el ingreso manual.");
-    });
+    function iniciarCamara() {
+        btnIniciarContainer.style.display = 'none';
+        videoContainer.style.display = 'block';
+        btnDetenerContainer.style.display = 'block';
+        scanning = true;
+
+        // Forzar cámara trasera en dispositivos móviles (facingMode: environment)
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+        .then(function(stream) {
+            currentStream = stream;
+            video.srcObject = stream;
+            video.setAttribute("playsinline", true);
+            video.play();
+            requestAnimationFrame(tick);
+        })
+        .catch(function(err) {
+            console.error("Error al acceder a la cámara: ", err);
+            alert("No se pudo acceder a la cámara. Usa el ingreso manual.");
+            detenerCamara();
+        });
+    }
+
+    function detenerCamara() {
+        scanning = false;
+        if (currentStream) {
+            currentStream.getTracks().forEach(track => track.stop());
+            currentStream = null;
+        }
+        video.srcObject = null;
+        videoContainer.style.display = 'none';
+        btnDetenerContainer.style.display = 'none';
+        btnIniciarContainer.style.display = 'block';
+    }
 
     function tick() {
         if (!scanning) return;
@@ -90,6 +128,10 @@
 
             if (code) {
                 scanning = false;
+                if (currentStream) {
+                    currentStream.getTracks().forEach(track => track.stop());
+                }
+                
                 let textoQR = code.data.trim();
                 
                 // Si escanea la URL completa, extraer el código final
@@ -98,7 +140,7 @@
                     textoQR = partes[partes.length - 1];
                 }
 
-                // Redirigir directamente a la validación
+                // Redirigir directamente a la validación sin límite de tiempo
                 window.location.href = `/admin/validar/${textoQR}`;
                 return;
             }
