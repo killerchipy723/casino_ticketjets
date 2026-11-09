@@ -23,6 +23,65 @@
     </style>
 </head>
 <body>
+    <!-- Navbar Superior Profesional y Responsiva -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-casino-dark border-bottom border-gold shadow-sm mb-4">
+    <div class="container-fluid px-3">
+        <!-- Logo / Marca -->
+        <a class="navbar-brand d-flex align-items-center" href="/dashboard">
+            <img src="{{ url_for('static', filename='images/anana_logo_transparente.png') }}" 
+                 alt="ANANA CLUB" 
+                 style="max-height: 38px; width: auto; filter: drop-shadow(0 0 5px rgba(212, 175, 55, 0.4));" class="me-2">
+            <span class="text-gold fw-bold tracking-wider" style="font-size: 0.95rem;">ANANA CLUB</span>
+        </a>
+
+        <!-- Botón Hamburguesa para Móviles -->
+        <button class="navbar-toggler border-gold" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <!-- Contenido desplegable (Usuario y Acciones) -->
+        <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
+            <ul class="navbar-nav align-items-lg-center gap-2 mt-2 mt-lg-0">
+                <!-- Info del Usuario Logueado -->
+                <li class="nav-item d-flex align-items-center px-2 py-1 rounded bg-black bg-opacity-50 border border-secondary border-opacity-25">
+                    <div class="me-2 text-start">
+                        <div class="text-white fw-bold small text-truncate" style="max-width: 150px;">
+                            {{ session.get('usuario_nombre', 'Usuario') }}
+                        </div>
+                        <div class="text-gold text-uppercase" style="font-size: 0.65rem; letter-spacing: 0.5px;">
+                            Rol: {{ session.get('usuario_rol', 'Invitado') }}
+                        </div>
+                    </div>
+                </li>
+
+                <!-- Botón de Cerrar Sesión -->
+                <li class="nav-item">
+                    <a href="/logout" class="btn btn-outline-danger btn-sm w-100 d-flex align-items-center justify-content-center gap-1 px-3 py-2" style="border-radius: 50px; font-weight: 700; font-size: 0.8rem;">
+                        🚪 Salir
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<style>
+    /* Estilos complementarios para mantener la línea visual del casino */
+    .bg-casino-dark { background-color: #12121a !important; }
+    .border-gold { border-color: #d4af37 !important; }
+    .text-gold { color: #d4af37 !important; }
+    
+    /* Ajuste responsivo para el menú en móviles */
+    @media (max-width: 991.98px) {
+        .navbar-collapse {
+            background-color: #0b0b10;
+            padding: 15px;
+            border-radius: 12px;
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            margin-top: 10px;
+        }
+    }
+</style>
 
 <div class="card-casino text-center">
     <!-- LOGO OFICIAL -->
