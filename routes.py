@@ -149,7 +149,7 @@ def registrar_rutas(app):
         elif rol == 'supervisor':
             return redirect(url_for('supervisor_dashboard'))
         elif rol == 'portero':
-            return redirect(url_for('portero_dashboard'))
+            return redirect(url_for('vista_escaneo'))
         else:
             return redirect(url_for('rrpp_dashboard'))
 
