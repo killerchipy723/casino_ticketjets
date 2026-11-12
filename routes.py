@@ -1,6 +1,6 @@
-from flask import render_template, request, redirect, url_for, flash, session, jsonify, send_file
-from extensions import db
-from models import Evento, Cliente,Premio, Ganador, Usuario, TicketQR, HistorialCanje,BeneficioPasaporte,InvitadoCumpleanios
+from flask import render_template, request, redirect, url_for, flash, session, jsonify, send_file, current_app
+from extensions import db, mail
+from models import Evento, Cliente, Premio, Ganador, Usuario, TicketQR, HistorialCanje, BeneficioPasaporte, InvitadoCumpleanios
 from datetime import datetime, timedelta
 from functools import wraps
 import random
@@ -17,13 +17,8 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image, Tabl
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from werkzeug.utils import secure_filename
 import os
-from flask_mail import Message
-
-from app import mail
 import threading
-from flask import current_app, url_for
 from flask_mail import Message
-from extensions import db, mail
 
 UPLOAD_FOLDER_SELFIES = os.path.join('static', 'uploads', 'selfies')
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}
