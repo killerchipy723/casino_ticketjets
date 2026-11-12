@@ -115,3 +115,44 @@ class HistorialCanje(db.Model):
     entradas_ingresadas = db.Column(db.Integer, nullable=False)
     validador_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
     fecha_canje = db.Column(db.DateTime, default=datetime.now)  # <--- Hora local
+
+# --- MÓDULO DE FIDELIZACIÓN Y CLIENTES ---
+
+class Cliente(db.Model):
+    __tablename__ = 'clientes'
+    id = db.Column(db.Integer, primary_key=True)
+    nombre_completo = db.Column(db.String(100), nullable=False)
+    dni = db.Column(db.String(20), unique=True, nullable=False, index=True)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    telefono_whatsapp = db.Column(db.String(30), nullable=False)
+    fecha_nacimiento = db.Column(db.Date, nullable=False)
+    foto_selfie = db.Column(db.String(255), nullable=True)
+    codigo_membresia = db.Column(db.String(50), unique=True, nullable=False)
+    puntos = db.Column(db.Integer, default=0)
+    acepto_terminos = db.Column(db.Boolean, default=True, nullable=False) # <--- NUEVO CAMPO
+    fecha_registro = db.Column(db.DateTime, default=datetime.now)
+
+    invitados = db.relationship('InvitadoCumpleanios', backref='cumpleanero', lazy=True, cascade="all, delete-orphan")
+    beneficios = db.relationship('BeneficioPasaporte', backref='cliente', lazy=True, cascade="all, delete-orphan")
+
+
+class InvitadoCumpleanios(db.Model):
+    __tablename__ = 'invitados_cumpleanios'
+    id = db.Column(db.Integer, primary_key=True)
+    cumpleanero_id = db.Column(db.Integer, db.ForeignKey('clientes.id'), nullable=False)
+    evento_id = db.Column(db.Integer, db.ForeignKey('eventos.id'), nullable=True)
+    nombre_completo = db.Column(db.String(100), nullable=False)
+    dni = db.Column(db.String(20), nullable=False)
+    ingresado = db.Column(db.Boolean, default=False)
+    fecha_ingreso = db.Column(db.DateTime, nullable=True)
+
+
+class BeneficioPasaporte(db.Model):
+    __tablename__ = 'beneficios_pasaporte'
+    id = db.Column(db.Integer, primary_key=True)
+    cliente_id = db.Column(db.Integer, db.ForeignKey('clientes.id'), nullable=False)
+    titulo = db.Column(db.String(100), nullable=False) # ej: "Champagne de Cumpleaños"
+    codigo_beneficio = db.Column(db.String(50), unique=True, nullable=False)
+    estado = db.Column(db.String(20), default='disponible') # disponible, canjeado, vencido
+    fecha_vencimiento = db.Column(db.DateTime, nullable=True)
+    fecha_canje = db.Column(db.DateTime, nullable=True)

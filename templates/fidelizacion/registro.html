@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registro de Socio - ANANA CLUB</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { background-color: #08080c; color: #fff; font-family: 'Montserrat', sans-serif; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px 0; }
+        .card-casino { background: #12121a; border: 1px solid #d4af37; border-radius: 16px; box-shadow: 0 0 30px rgba(212, 175, 55, 0.2); width: 100%; max-width: 440px; padding: 25px; }
+        .text-gold { color: #d4af37 !important; }
+        .btn-gold { background: linear-gradient(45deg, #d4af37, #f9e076, #b38728); border: none; color: #000; font-weight: 900; text-transform: uppercase; padding: 12px; border-radius: 50px; }
+        .form-control { background-color: #08080c !important; color: #fff !important; border: 1px solid #d4af37 !important; border-radius: 8px; }
+        
+        /* Homogeneización visual de inputs */
+        .input-uppercase { text-transform: uppercase; }
+        .input-lowercase { text-transform: lowercase; }
+        
+        /* Checkbox estilizaciones */
+        .form-check-input:checked { background-color: #d4af37; border-color: #d4af37; }
+        #camera-preview { width: 100%; height: 220px; object-fit: cover; border-radius: 12px; border: 2px dashed #d4af37; background: #000; }
+    </style>
+</head>
+<body>
+
+<div class="card-casino">
+    <div class="text-center mb-3">
+        <img src="{{ url_for('static', filename='images/anana_logo_transparente.png') }}" alt="ANANA CLUB" style="max-height: 50px;">
+        <h4 class="text-gold fw-bold mt-2 mb-0">MEMBRESÍA VIP</h4>
+        <small class="text-white-50">Sé parte del club y accede a beneficios exclusivos</small>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }} py-2 small">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <form method="POST" action="/fidelizacion/registro" id="formRegistro">
+        <!-- NOMBRE COMPLETO (FORZADO A MAYÚSCULAS) -->
+        <div class="mb-3">
+            <label class="form-label small text-gold fw-bold">Nombre Completo *</label>
+            <input type="text" name="nombre_completo" class="form-control input-uppercase" placeholder="EJ. JUAN PÉREZ" autocomplete="off" required>
+        </div>
+
+        <!-- DNI (SOLO NÚMEROS) -->
+        <div class="mb-3">
+            <label class="form-label small text-gold fw-bold">DNI *</label>
+            <input type="input" inputmode="numeric" name="dni" class="form-control" placeholder="Solo números (sin puntos)" oninput="this.value = this.value.replace(/[^0-9]/g, '');" required>
+        </div>
+
+        <!-- CORREO ELECTRÓNICO (FORZADO A MINÚSCULAS) -->
+        <div class="mb-3">
+            <label class="form-label small text-gold fw-bold">Correo Electrónico *</label>
+            <input type="email" name="email" class="form-control input-lowercase" placeholder="tuemail@gmail.com" required>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label small text-gold fw-bold">WhatsApp / Celular *</label>
+            <input type="tel" name="telefono_whatsapp" class="form-control" placeholder="+54 3876..." required>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label small text-gold fw-bold">Fecha de Nacimiento *</label>
+            <input type="date" name="fecha_nacimiento" class="form-control" required>
+            <small class="text-white-50" style="font-size: 0.72rem;">Requerido para regalos y lista de cumpleaños.</small>
+        </div>
+
+        <!-- CAPTURA DE SELFIE DE PERFIL -->
+        <div class="mb-3 text-center">
+            <label class="form-label small text-gold fw-bold d-block">Selfie de Perfil (Membresía)</label>
+            <video id="camera-preview" autoplay playsinline style="display: none;"></video>
+            <img id="selfie-result" style="width: 100%; height: 220px; object-fit: cover; border-radius: 12px; border: 2px solid #d4af37; display: none;">
+            
+            <input type="hidden" name="foto_selfie_data" id="foto_selfie_data">
+
+            <div class="mt-2">
+                <button type="button" class="btn btn-outline-warning btn-sm w-100" id="btn-camara" onclick="abrirCamara()">📸 Tomar Selfie</button>
+                <button type="button" class="btn btn-success btn-sm w-100 mt-2" id="btn-capturar" style="display: none;" onclick="capturarFoto()">📷 Capturar Foto</button>
+            </div>
+        </div>
+
+        <!-- CHECKBOX DE TÉRMINOS Y TRATAMIENTO DE DATOS -->
+        <div class="mb-3 form-check text-start">
+            <input type="checkbox" class="form-check-input" id="acepto_terminos" name="acepto_terminos" required>
+            <label class="form-check-label text-white small" style="font-size: 0.78rem;" for="acepto_terminos">
+                Acepto los términos y condiciones de <strong>ANANA CLUB</strong> y autorizo el uso de mis datos y selfie para la gestión del pasaporte digital de fidelización.
+            </label>
+        </div>
+
+        <button type="submit" class="btn btn-gold w-100 mt-2">REGISTRARME AHORA</button>
+    </form>
+</div>
+
+<canvas id="canvas-hidden" hidden></canvas>
+
+<script>
+    let video = document.getElementById('camera-preview');
+    let canvas = document.getElementById('canvas-hidden');
+    let selfieResult = document.getElementById('selfie-result');
+    let fotoDataInput = document.getElementById('foto_selfie_data');
+    let streamRef = null;
+
+    function abrirCamara() {
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
+        .then(function(stream) {
+            streamRef = stream;
+            video.srcObject = stream;
+            video.style.display = 'block';
+            selfieResult.style.display = 'none';
+            document.getElementById('btn-camara').style.display = 'none';
+            document.getElementById('btn-capturar').style.display = 'block';
+        })
+        .catch(function(err) {
+            alert("No se pudo acceder a la cámara frontal.");
+        });
+    }
+
+    function capturarFoto() {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        let ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        let dataUrl = canvas.toDataURL('image/jpeg');
+        fotoDataInput.value = dataUrl;
+        selfieResult.src = dataUrl;
+        selfieResult.style.display = 'block';
+        video.style.display = 'none';
+
+        if (streamRef) {
+            streamRef.getTracks().forEach(track => track.stop());
+        }
+
+        document.getElementById('btn-capturar').style.display = 'none';
+        document.getElementById('btn-camara').style.display = 'block';
+        document.getElementById('btn-camara').innerText = '🔄 Repetir Foto';
+    }
+</script>
+</body>
+</html>

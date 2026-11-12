@@ -1,6 +1,6 @@
 from flask import render_template, request, redirect, url_for, flash, session, jsonify, send_file
 from extensions import db
-from models import Evento, Premio, Ganador, Usuario, TicketQR, HistorialCanje
+from models import Evento, Cliente,Premio, Ganador, Usuario, TicketQR, HistorialCanje,BeneficioPasaporte,InvitadoCumpleanios
 from datetime import datetime, timedelta
 from functools import wraps
 import random
@@ -17,6 +17,9 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image, Tabl
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from werkzeug.utils import secure_filename
 import os
+
+UPLOAD_FOLDER_SELFIES = os.path.join('static', 'uploads', 'selfies')
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}
 
 # --- DECORADOR DE ROLES ---
 def login_required(roles=None):
@@ -622,3 +625,131 @@ def registrar_rutas(app):
         
         flash(f'✅ El vendedor {vendedor.nombre_completo} ha sido reactivado y ya puede ingresar a emitir pases.', 'success')
         return redirect(url_for('admin_dashboard'))
+
+
+  
+
+    def archivo_permitido(filename):
+        return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+    # --- 1. VISTA DE REGISTRO PÚBLICO DE SOCIO ---
+    @app.route('/fidelizacion/registro', methods=['GET', 'POST'])
+    def registro_fidelizacion():
+        if request.method == 'POST':
+            # Sanitización y estandarización de strings en el servidor
+            nombre = request.form.get('nombre_completo', '').strip().upper()  # SIEMPRE MAYÚSCULAS
+            dni = request.form.get('dni', '').strip()                        # SOLO NÚMEROS
+            email = request.form.get('email', '').strip().lower()             # SIEMPRE MINÚSCULAS
+            telefono = request.form.get('telefono_whatsapp', '').strip()
+            fecha_nac_str = request.form.get('fecha_nacimiento', '').strip()
+            foto_base64 = request.form.get('foto_selfie_data', '')
+            acepto_terms = request.form.get('acepto_terminos') == 'on'         # Checkbox booleano
+
+            # Validaciones
+            if not acepto_terms:
+                flash('Debes aceptar los términos y condiciones para ser socio.', 'danger')
+                return redirect(url_for('registro_fidelizacion'))
+
+            if not nombre or not dni or not email or not fecha_nac_str:
+                flash('Por favor completa todos los campos obligatorios.', 'danger')
+                return redirect(url_for('registro_fidelizacion'))
+
+            # Limpiar DNI eliminando puntos o espacios accidentales
+            dni = ''.join(filter(str.isdigit, dni))
+
+            # Verificar si ya existe DNI o Email en la base de datos
+            existente = Cliente.query.filter((Cliente.dni == dni) | (Cliente.email == email)).first()
+            if existente:
+                flash('Ya existe un socio registrado con ese DNI o correo electrónico.', 'warning')
+                return redirect(url_for('ver_tarjeta_fidelizacion', dni=existente.dni))
+
+            # Convertir fecha de nacimiento
+            try:
+                fecha_nac = datetime.strptime(fecha_nac_str, '%Y-%m-%d').date()
+            except ValueError:
+                flash('Formato de fecha inválido.', 'danger')
+                return redirect(url_for('registro_fidelizacion'))
+
+            # Procesar foto selfie Base64
+            filename = None
+            if foto_base64 and ',' in foto_base64:
+                import base64
+                os.makedirs(UPLOAD_FOLDER_SELFIES, exist_ok=True)
+                header, encoded = foto_base64.split(',', 1)
+                file_data = base64.b64decode(encoded)
+                filename = f"selfie_{dni}_{uuid.uuid4().hex[:8]}.jpg"
+                file_path = os.path.join(UPLOAD_FOLDER_SELFIES, filename)
+                with open(file_path, 'wb') as f:
+                    f.write(file_data)
+
+            codigo = f"ANANA-VIP-{uuid.uuid4().hex[:6].upper()}"
+
+            nuevo_cliente = Cliente(
+                nombre_completo=nombre,
+                dni=dni,
+                email=email,
+                telefono_whatsapp=telefono,
+                fecha_nacimiento=fecha_nac,
+                foto_selfie=filename,
+                codigo_membresia=codigo,
+                puntos=100,
+                acepto_terminos=True
+            )
+
+            regalo_bienvenida = BeneficioPasaporte(
+                cliente=nuevo_cliente,
+                titulo="🍸 Trago de Bienvenida VIP",
+                codigo_beneficio=f"REGALO-{uuid.uuid4().hex[:6].upper()}",
+                estado='disponible'
+            )
+
+            db.session.add(nuevo_cliente)
+            db.session.add(regalo_bienvenida)
+            db.session.commit()
+
+            flash('¡Felicitaciones! Ya sos socio de ANANA CLUB.', 'success')
+            return redirect(url_for('ver_tarjeta_fidelizacion', dni=dni))
+
+        return render_template('fidelizacion/registro.html')
+
+
+    # --- 2. PASAPORTE / TARJETA DIGITAL VIP ---
+    @app.route('/fidelizacion/tarjeta/<dni>')
+    def ver_tarjeta_fidelizacion(dni):
+        cliente = Cliente.query.filter_by(dni=dni).first_or_404()
+        evento_actual = Evento.query.filter_by(es_evento_actual=True).first()
+        
+        # Calcular si este mes o semana es su cumpleaños
+        hoy = datetime.now().date()
+        es_mes_cumple = (cliente.fecha_nacimiento.month == hoy.month)
+
+        return render_template('fidelizacion/tarjeta.html', cliente=cliente, evento_actual=evento_actual, es_mes_cumple=es_mes_cumple)
+
+
+    # --- 3. CARGA DE LISTA DE CUMPLEAÑOS (AUTOGESTIÓN) ---
+    @app.route('/fidelizacion/cumpleanos/invitados', methods=['POST'])
+    def guardar_invitados_cumple():
+        cliente_id = request.form.get('cliente_id')
+        evento_id = request.form.get('evento_id')
+        nombres = request.form.getlist('invitado_nombre[]')
+        dnis = request.form.getlist('invitado_dni[]')
+
+        cliente = Cliente.query.get_or_404(cliente_id)
+
+        # Guardar invitados
+        for i in range(len(nombres)):
+            nom = nombres[i].strip()
+            documento = dnis[i].strip()
+            if nom and documento:
+                inv = InvitadoCumpleanios(
+                    cumpleanero_id=cliente.id,
+                    evento_id=evento_id if evento_id else None,
+                    nombre_completo=nom,
+                    dni=documento
+                )
+                db.session.add(inv)
+
+        db.session.commit()
+        flash('¡Lista de invitados cargada correctamente!', 'success')
+        return redirect(url_for('ver_tarjeta_fidelizacion', dni=cliente.dni))

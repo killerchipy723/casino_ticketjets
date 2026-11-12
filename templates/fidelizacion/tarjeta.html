@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pasaporte VIP - ANANA CLUB</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+    <style>
+        body { background-color: #08080c; color: #fff; font-family: 'Montserrat', sans-serif; min-height: 100vh; padding: 20px 0; }
+        .card-vip { background: linear-gradient(135deg, #181824, #0d0d14); border: 2px solid #d4af37; border-radius: 20px; box-shadow: 0 0 35px rgba(212, 175, 55, 0.25); max-width: 440px; margin: 0 auto; padding: 25px; position: relative; }
+        .text-gold { color: #d4af37 !important; }
+        .avatar-vip { width: 90px; height: 90px; object-fit: cover; border-radius: 50%; border: 3px solid #d4af37; box-shadow: 0 0 15px rgba(212, 175, 55, 0.4); }
+        .badge-puntos { background: linear-gradient(45deg, #d4af37, #f9e076); color: #000; font-weight: 900; font-size: 0.9rem; padding: 6px 14px; border-radius: 50px; }
+        .btn-gold { background: linear-gradient(45deg, #d4af37, #f9e076, #b38728); border: none; color: #000; font-weight: 900; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="card-vip text-center">
+        <!-- ENCABEZADO -->
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <img src="{{ url_for('static', filename='images/anana_logo_transparente.png') }}" style="max-height: 35px;">
+            <span class="badge-puntos">⭐ {{ cliente.puntos }} Puntos</span>
+        </div>
+
+        <!-- FOTO Y NOMBRE DE SOCIO -->
+        <div class="my-3">
+            {% if cliente.foto_selfie %}
+                <img src="{{ url_for('static', filename='uploads/selfies/' + cliente.foto_selfie) }}" class="avatar-vip mb-2">
+            {% else %}
+                <div class="avatar-vip mx-auto d-flex align-items-center justify-content-center bg-dark text-gold fs-2 fw-bold">
+                    {{ cliente.nombre_completo[0] }}
+                </div>
+            {% endif %}
+            <h4 class="text-white fw-bold mb-0 mt-2">{{ cliente.nombre_completo }}</h4>
+            <small class="text-gold font-monospace">{{ cliente.codigo_membresia }}</small>
+        </div>
+
+        <!-- CÓDIGO QR DE SOCIO -->
+        <div class="bg-white p-3 rounded-4 d-inline-block my-2">
+            <div id="qrcode"></div>
+        </div>
+        <small class="d-block text-white-50 mb-3">Presenta este QR en puerta o barra</small>
+
+        <hr class="border-secondary">
+
+        <!-- BENEFICIOS / PASAPORTE -->
+        <h6 class="text-gold fw-bold text-start mb-2">🎁 MIS BENEFICIOS & CONSUMICIONES</h6>
+        <div class="list-group mb-3">
+            {% for b in cliente.beneficios %}
+                <div class="list-group-item bg-dark text-white border-secondary d-flex justify-content-between align-items-center text-start">
+                    <div>
+                        <strong class="d-block text-gold small">{{ b.titulo }}</strong>
+                        <small class="text-muted" style="font-size: 0.7rem;">Código: {{ b.codigo_beneficio }}</small>
+                    </div>
+                    <span class="badge bg-{{ 'success' if b.estado == 'disponible' else 'secondary' }}">
+                        {{ b.estado|upper }}
+                    </span>
+                </div>
+            {% else %}
+                <small class="text-muted">No tienes beneficios pendientes por canjear.</small>
+            {% endfor %}
+        </div>
+
+        <!-- MÓDULO DE CUMPLEAÑOS -->
+        {% if es_mes_cumple %}
+            <div class="bg-dark p-3 rounded border border-warning text-start mt-3">
+                <h6 class="text-gold fw-bold mb-1">🎂 ¡ES TU MES DE CUMPLEAÑOS!</h6>
+                <p class="small text-white-50 mb-2">Carga la lista de tus amigos que ingresarán gratis contigo este fin de semana.</p>
+                
+                <button class="btn btn-gold btn-sm w-100 fw-bold" data-bs-toggle="modal" data-bs-target="#modalCumple">
+                    ➕ Cargar Lista de Amigos
+                </button>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- MODAL CARGAR AMIGOS CUMPLE -->
+<div class="modal fade" id="modalCumple" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content bg-dark text-white border-warning">
+      <div class="modal-header border-secondary">
+        <h5 class="modal-title text-gold fw-bold">Cargar Lista de Amigos</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" action="/fidelizacion/cumpleanos/invitados">
+          <input type="hidden" name="cliente_id" value="{{ cliente.id }}">
+          <input type="hidden" name="evento_id" value="{{ evento_actual.id if evento_actual else '' }}">
+          <div class="modal-body">
+              <p class="small text-muted">Ingresa Nombre Completo y DNI de tus invitados (Máx 10):</p>
+              <div id="lista-invitados">
+                  <div class="row g-2 mb-2">
+                      <div class="col-7"><input type="text" name="invitado_nombre[]" class="form-control form-control-sm bg-black text-white border-secondary" placeholder="Nombre completo"></div>
+                      <div class="col-5"><input type="number" name="invitado_dni[]" class="form-control form-control-sm bg-black text-white border-secondary" placeholder="DNI"></div>
+                  </div>
+              </div>
+              <button type="button" class="btn btn-outline-warning btn-sm w-100 mt-2" onclick="agregarFila()">+ Agregar otro invitado</button>
+          </div>
+          <div class="modal-footer border-secondary">
+              <button type="submit" class="btn btn-gold w-100">Guardar Lista</button>
+          </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    // Generar QR de socio
+    var qr = qrcode(0, 'M');
+    qr.addData("{{ cliente.codigo_membresia }}");
+    qr.make();
+    document.getElementById('qrcode').innerHTML = qr.createImgTag(5);
+
+    function agregarFila() {
+        let div = document.createElement('div');
+        div.className = 'row g-2 mb-2';
+        div.innerHTML = `
+            <div class="col-7"><input type="text" name="invitado_nombre[]" class="form-control form-control-sm bg-black text-white border-secondary" placeholder="Nombre completo"></div>
+            <div class="col-5"><input type="number" name="invitado_dni[]" class="form-control form-control-sm bg-black text-white border-secondary" placeholder="DNI"></div>
+        `;
+        document.getElementById('lista-invitados').appendChild(div);
+    }
+</script>
+</body>
+</html>
