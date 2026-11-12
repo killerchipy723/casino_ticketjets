@@ -22,14 +22,14 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 
 
-# Configuración de correo (ajusta con los datos reales de ANANA CLUB)
-app.config['MAIL_SERVER'] = 'smtp.gmail.com'       # O el servidor SMTP de tu hosting
-app.config['MAIL_PORT'] = 587
-app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USERNAME'] = 'ananaclub.online@gmail.com'  # Tu email de salida
-app.config['MAIL_PASSWORD'] = 'yfdq krdv tmtj aixr' # Contraseña de app o email
-app.config['MAIL_DEFAULT_SENDER'] = ('ANANA CLUB', 'ananaclub.online@gmail.com')
-
+# Configuración de correo SMTP con Ferozo / DonWeb
+app.config['MAIL_SERVER'] = 'c2710325.ferozo.com'   
+app.config['MAIL_PORT'] = 465                         
+app.config['MAIL_USE_SSL'] = True                  
+app.config['MAIL_USE_TLS'] = False                    
+app.config['MAIL_USERNAME'] = 'mail@ananaclub.online' 
+app.config['MAIL_PASSWORD'] = 'GM@smEuG2oM2wzv' 
+app.config['MAIL_DEFAULT_SENDER'] = ('ANANA CLUB', 'mail@ananaclub.online')
 mail = Mail(app)
 
 # Inicializar SQLAlchemy con la app
