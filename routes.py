@@ -715,7 +715,7 @@ def registrar_rutas(app):
             db.session.add(regalo_bienvenida)
             db.session.commit()
 
-            enviar_correo_bienvenida(nuevo_cliente)
+            disparar_correo_bienvenida(nuevo_cliente.id)
 
             flash('¡Felicitaciones! Ya sos socio de ANANA CLUB.', 'success')
             return redirect(url_for('ver_tarjeta_fidelizacion', dni=dni))
