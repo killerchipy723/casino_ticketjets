@@ -37,6 +37,7 @@ db.init_app(app)
 
 # Registrar las rutas desde el archivo routes.py
 registrar_rutas(app)
+mail.init_app(app)
 
 # Crear las tablas e insertar evento y premios iniciales si la base está vacía
 with app.app_context():
