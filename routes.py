@@ -17,6 +17,13 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image, Tabl
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from werkzeug.utils import secure_filename
 import os
+from flask_mail import Message
+from flask import render_string
+from app import mail
+import threading
+from flask import current_app, url_for
+from flask_mail import Message
+from extensions import db, mail
 
 UPLOAD_FOLDER_SELFIES = os.path.join('static', 'uploads', 'selfies')
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}
@@ -708,6 +715,8 @@ def registrar_rutas(app):
             db.session.add(regalo_bienvenida)
             db.session.commit()
 
+            enviar_correo_bienvenida(nuevo_cliente)
+
             flash('¡Felicitaciones! Ya sos socio de ANANA CLUB.', 'success')
             return redirect(url_for('ver_tarjeta_fidelizacion', dni=dni))
 
@@ -753,3 +762,58 @@ def registrar_rutas(app):
         db.session.commit()
         flash('¡Lista de invitados cargada correctamente!', 'success')
         return redirect(url_for('ver_tarjeta_fidelizacion', dni=cliente.dni))
+
+# ----------------------------- ENVIO DE MENSAJE DE BIENVENIDA ---------------------------------
+
+def enviar_correo_bienvenida_async(app, cliente_id):
+    """Envía el correo de bienvenida en segundo plano dentro del contexto de Flask."""
+    with app.app_context():
+        cliente = Cliente.query.get(cliente_id)
+        if not cliente:
+            return
+        
+        try:
+            # Enlace absoluto al pasaporte VIP del cliente
+            url_tarjeta = f"https://ananaclub.online/fidelizacion/tarjeta/{cliente.dni}"
+
+            asunto = "🍸 ¡Bienvenido a ANANA CLUB! Tu Tarjeta VIP ya está lista"
+            
+            cuerpo_html = f"""
+            <div style="background-color: #08080c; color: #ffffff; padding: 30px; font-family: 'Montserrat', Arial, sans-serif; border-radius: 12px; max-width: 600px; margin: auto;">
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <h2 style="color: #d4af37; margin: 0; font-size: 28px;">ANANA CLUB</h2>
+                    <p style="font-size: 14px; color: #b0b0b0; margin-top: 5px;">Membresía VIP & Pasaporte Digital</p>
+                </div>
+                
+                <p>Hola <strong style="color: #d4af37;">{cliente.nombre_completo}</strong>,</p>
+                <p>¡Gracias por sumarte! Tu registro en <strong>ANANA CLUB</strong> se ha completado con éxito.</p>
+                
+                <div style="background: #12121a; border: 1px solid #d4af37; padding: 20px; border-radius: 10px; text-align: center; margin: 25px 0;">
+                    <p style="margin: 0 0 5px 0; font-size: 12px; color: #d4af37; text-transform: uppercase; font-weight: bold;">Código de Socio:</p>
+                    <h3 style="margin: 0; color: #ffffff; font-family: monospace; font-size: 22px;">{cliente.codigo_membresia}</h3>
+                </div>
+                
+                <p>Accede a tu pasaporte digital para consultar tu QR de acceso, puntos acumulados y consumiciones de bienvenida:</p>
+                
+                <div style="text-align: center; margin: 30px 0;">
+                    <a href="{url_tarjeta}" style="background: linear-gradient(45deg, #d4af37, #f9e076); color: #000000; padding: 14px 28px; text-decoration: none; font-weight: bold; border-radius: 50px; display: inline-block; text-transform: uppercase; font-size: 13px; letter-spacing: 1px;">VER MI TARJETA VIP</a>
+                </div>
+                
+                <hr style="border: 0; border-top: 1px solid #222; margin: 30px 0;">
+                <p style="font-size: 11px; color: #666666; text-align: center; margin: 0;">
+                    ANANA CLUB — Sistema de Fidelización.<br>Si no solicitaste este alta, puedes ignorar este mensaje.
+                </p>
+            </div>
+            """
+
+            msg = Message(asunto, recipients=[cliente.email], html=cuerpo_html)
+            mail.send(msg)
+            print(f"[OK] Correo de bienvenida enviado a {cliente.email}")
+        except Exception as e:
+            print(f"[ERROR] Falló el envío de correo a {cliente.email}: {e}")
+
+
+def disparar_correo_bienvenida(cliente_id):
+    """Obtiene la instancia actual de la app y lanza el hilo secundario."""
+    app = current_app._get_current_object()
+    threading.Thread(target=enviar_correo_bienvenida_async, args=(app, cliente_id)).start()

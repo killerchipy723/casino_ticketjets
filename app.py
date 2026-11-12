@@ -3,6 +3,8 @@ from extensions import db
 from models import Evento, Premio
 from routes import registrar_rutas
 from datetime import datetime, timedelta
+from flask_mail import Mail, Message
+
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'clave_secreta_super_segura_boliche_2026'
@@ -17,6 +19,18 @@ DB_NAME = 'c2710325_base'
 
 app.config['SQLALCHEMY_DATABASE_URI'] = f'mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}?charset=utf8mb4'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+
+
+# Configuración de correo (ajusta con los datos reales de ANANA CLUB)
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'       # O el servidor SMTP de tu hosting
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = 'ananaclub.online@gmail.com'  # Tu email de salida
+app.config['MAIL_PASSWORD'] = 'yfdq krdv tmtj aixr' # Contraseña de app o email
+app.config['MAIL_DEFAULT_SENDER'] = ('ANANA CLUB', 'ananaclub.online@gmail.com')
+
+mail = Mail(app)
 
 # Inicializar SQLAlchemy con la app
 db.init_app(app)
