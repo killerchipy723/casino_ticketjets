@@ -18,7 +18,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from werkzeug.utils import secure_filename
 import os
 from flask_mail import Message
-from flask import render_string
+
 from app import mail
 import threading
 from flask import current_app, url_for
