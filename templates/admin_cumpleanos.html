@@ -12,7 +12,7 @@
     <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
       <div>
         <h2 class="mb-0 text-gold fw-bold">Gestión de Beneficio Cumpleaños</h2>
-        <small class="text-muted-custom">Configurá rangos de cumpleaños, cupos de amigos y vencimientos (Hora Argentina)</small>
+        <small class="text-white-custom">Configurá rangos de cumpleaños, cupos de amigos y vencimientos (Hora Argentina)</small>
       </div>
       <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-light btn-sm">
         ← Volver al Panel Admin
@@ -62,13 +62,13 @@
             <div class="mb-3">
               <label for="limite_amigos" class="form-label">Límite de Amigos Gratis</label>
               <input type="number" class="form-control" id="limite_amigos" name="limite_amigos" min="0" max="50" value="5" required />
-              <div class="form-text text-muted-custom">Cantidad máxima de acompañantes que puede cargar el cumpleañero.</div>
+              <div class="form-text text-white-custom">Cantidad máxima de acompañantes que puede cargar el cumpleañero.</div>
             </div>
 
             <div class="mb-4">
               <label for="vence_el" class="form-label">Vence el (Fecha y Hora — Argentina)</label>
               <input type="datetime-local" class="form-control" id="vence_el" name="vence_el" required />
-              <div class="form-text text-muted-custom">Ej: si el evento es esta noche y vence a las 02:00 AM del domingo, cargá ese día y hora.</div>
+              <div class="form-text text-white-custom">Ej: si el evento es esta noche y vence a las 02:00 AM del domingo, cargá ese día y hora.</div>
             </div>
 
             <button type="submit" class="btn btn-gold w-100 py-2">Guardar y Generar Link de Flyer</button>
@@ -126,7 +126,7 @@
               </table>
             </div>
           {% else %}
-            <p class="text-muted-custom mb-0">Todavía no hay configuraciones de cumpleaños cargadas.</p>
+            <p class="text-white-custom mb-0">Todavía no hay configuraciones de cumpleaños cargadas.</p>
           {% endif %}
         </div>
       </div>
