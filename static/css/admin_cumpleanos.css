@@ -1,0 +1,76 @@
+:root {
+  --bg-dark: #0f0e11;
+  --bg-card: #19171e;
+  --accent-gold: #e0b15e;
+  --accent-warm: #c96a3b;
+  --text-main: #f5f2eb;
+  --text-muted: #a69fb0;
+  --border-subtle: rgba(224, 177, 94, 0.22);
+}
+
+body {
+  background-color: var(--bg-dark);
+  color: var(--text-main);
+  min-height: 100vh;
+}
+
+.card-anana {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 14px;
+}
+
+.text-gold {
+  color: var(--accent-gold) !important;
+}
+
+.text-muted-custom {
+  color: var(--text-muted);
+}
+
+.btn-gold {
+  background: linear-gradient(135deg, var(--accent-gold), var(--accent-warm));
+  color: #111;
+  font-weight: 700;
+  border: none;
+}
+
+.btn-gold:hover {
+  opacity: 0.92;
+  color: #111;
+}
+
+.form-control,
+.form-select {
+  background-color: #121016;
+  border-color: rgba(255, 255, 255, 0.14);
+  color: var(--text-main);
+}
+
+.form-control:focus,
+.form-select:focus {
+  background-color: #121016;
+  border-color: var(--accent-gold);
+  color: var(--text-main);
+  box-shadow: 0 0 0 0.2rem rgba(224, 177, 94, 0.2);
+}
+
+.table-dark-custom {
+  --bs-table-bg: transparent;
+  --bs-table-color: var(--text-main);
+  --bs-table-border-color: rgba(255, 255, 255, 0.1);
+}
+
+.link-flyer {
+  font-size: 0.82rem;
+  background: #121016;
+  border: 1px dashed rgba(224, 177, 94, 0.45);
+  color: var(--accent-gold);
+  padding: 6px 10px;
+  border-radius: 8px;
+  word-break: break-all;
+}
+
+.celda-link {
+  min-width: 210px;
+}
