@@ -12,7 +12,7 @@
     <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
       <div>
         <h2 class="h4 text-gold fw-bold mb-0">Portería — Beneficio Cumpleaños</h2>
-        <small class="text-muted-custom">Validá DNI y cumpleaños, tildá amigos que ingresan y aprobá</small>
+        <small class="text-white-custom">Validá DNI y cumpleaños, tildá amigos que ingresan y aprobá</small>
       </div>
       <a href="{{ url_for('vista_escaneo') }}" class="btn btn-outline-light btn-sm">
         ← Volver al Control de Puerta
@@ -53,7 +53,7 @@
               <strong>Fecha de Nacimiento:</strong>
               <span class="badge text-bg-warning text-dark fs-6">{{ registro.fecha_nacimiento.strftime('%d/%m/%Y') }}</span>
             </div>
-            <div class="small text-muted-custom mt-1">
+            <div class="small text-white-custom mt-1">
               Rango válido: {{ config.fecha_inicio_cumple.strftime('%d/%m') }} al {{ config.fecha_fin_cumple.strftime('%d/%m') }} •
               Vence: <strong>{{ config.vence_el.strftime('%d/%m/%Y %H:%M hs') }}</strong>
             </div>
@@ -116,7 +116,7 @@
                              {% if amigo.ingresado %}checked disabled{% endif %} />
                       <label class="form-check-label" for="amigo_{{ amigo.id }}">
                         <strong>{{ amigo.nombre_completo }}</strong>
-                        {% if amigo.dni %}<span class="text-muted-custom small"> — DNI {{ amigo.dni }}</span>{% endif %}
+                        {% if amigo.dni %}<span class="text-white-custom small"> — DNI {{ amigo.dni }}</span>{% endif %}
                       </label>
                     </div>
                     {% if amigo.ingresado %}
@@ -128,7 +128,7 @@
                 {% endfor %}
               </div>
             {% else %}
-              <p class="text-muted-custom small mb-4">Este cumpleañero no registró amigos.</p>
+              <p class="text-white-custom small mb-4">Este cumpleañero no registró amigos.</p>
             {% endif %}
 
             <button type="submit" class="btn btn-aprobar w-100 py-3 fs-6">
