@@ -61,7 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
     inputAmigoNombre.type = 'text';
     inputAmigoNombre.className = 'form-control form-control-sm uppercase-input';
     inputAmigoNombre.name = 'amigo_nombre[]';
-    inputAmigoNombre.placeholder = 'Nombre y apellido del amigo';
+    inputAmigoNombre.placeholder = 'Apellido y nombre del amigo';
     inputAmigoNombre.addEventListener('input', () => {
       inputAmigoNombre.value = inputAmigoNombre.value.toUpperCase();
     });
@@ -74,7 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
     inputAmigoDni.inputMode = 'numeric';
     inputAmigoDni.className = 'form-control form-control-sm';
     inputAmigoDni.name = 'amigo_dni[]';
-    inputAmigoDni.placeholder = 'DNI (opcional)';
+    inputAmigoDni.placeholder = 'DNI';
     colDni.appendChild(inputAmigoDni);
 
     const colAccion = document.createElement('div');
