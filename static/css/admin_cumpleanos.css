@@ -1,11 +1,10 @@
 :root {
-  --bg-dark: #0f0e11;
-  --bg-card: #19171e;
-  --accent-gold: #e0b15e;
-  --accent-warm: #c96a3b;
-  --text-main: #f5f2eb;
-  --text-muted: #a69fb0;
-  --border-subtle: rgba(224, 177, 94, 0.22);
+  --bg-dark: #0e0d12;
+  --bg-card: #18161f;
+  --accent-gold: #e2b45d;
+  --text-main: #f6f3ec;
+  --text-muted: #aba3b8;
+  --placeholder-soft: #c8c3d1;
 }
 
 body {
@@ -14,63 +13,53 @@ body {
   min-height: 100vh;
 }
 
-.card-anana {
-  background-color: var(--bg-card);
-  border: 1px solid var(--border-subtle);
-  border-radius: 14px;
-}
-
 .text-gold {
   color: var(--accent-gold) !important;
 }
 
 .text-muted-custom {
-  color: var(--text-muted);
+  color: var(--text-muted) !important;
 }
 
-.btn-gold {
-  background: linear-gradient(135deg, var(--accent-gold), var(--accent-warm));
-  color: #111;
-  font-weight: 700;
-  border: none;
+.card-admin {
+  background-color: var(--bg-card);
+  border: 1px solid rgba(226, 180, 93, 0.25);
+  border-radius: 14px;
 }
 
-.btn-gold:hover {
-  opacity: 0.92;
-  color: #111;
+.card-metric {
+  background-color: #121018;
+  border: 1px solid rgba(226, 180, 93, 0.2);
+  border-radius: 12px;
 }
 
 .form-control,
 .form-select {
-  background-color: #121016;
+  background-color: #110f17;
   border-color: rgba(255, 255, 255, 0.14);
   color: var(--text-main);
 }
 
 .form-control:focus,
 .form-select:focus {
-  background-color: #121016;
+  background-color: #110f17;
   border-color: var(--accent-gold);
   color: var(--text-main);
-  box-shadow: 0 0 0 0.2rem rgba(224, 177, 94, 0.2);
+  box-shadow: 0 0 0 0.2rem rgba(226, 180, 93, 0.2);
 }
 
-.table-dark-custom {
-  --bs-table-bg: transparent;
-  --bs-table-color: var(--text-main);
-  --bs-table-border-color: rgba(255, 255, 255, 0.1);
+.form-control::placeholder {
+  color: var(--placeholder-soft) !important;
+  opacity: 1 !important;
 }
 
-.link-flyer {
-  font-size: 0.82rem;
-  background: #121016;
-  border: 1px dashed rgba(224, 177, 94, 0.45);
+.table-dark {
+  --bs-table-bg: var(--bg-card);
+  --bs-table-hover-bg: #221f2b;
+}
+
+.table th {
+  border-bottom: 1px solid rgba(226, 180, 93, 0.3);
   color: var(--accent-gold);
-  padding: 6px 10px;
-  border-radius: 8px;
-  word-break: break-all;
-}
-
-.celda-link {
-  min-width: 210px;
+  font-weight: 600;
 }

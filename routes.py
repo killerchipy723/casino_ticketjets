@@ -21,6 +21,8 @@ import os
 import threading
 from flask_mail import Message
 from zoneinfo import ZoneInfo
+from datetime import datetime, date
+import calendar
 
 UPLOAD_FOLDER_SELFIES = os.path.join('static', 'uploads', 'selfies')
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}
@@ -854,34 +856,122 @@ def registrar_rutas(app):
 
     # --------------------------- RUTA PARA CUMPLEAÑEROS -------------------------------------------
     @app.route('/admin/cumpleanos', methods=['GET', 'POST'])
-    @login_required(roles=['admin'])
     def admin_cumpleanos():
-        eventos = Evento.query.filter_by(estado='activo').order_by(Evento.id.desc()).all()
-        if not eventos:
-            eventos = Evento.query.order_by(Evento.id.desc()).all()
-        configs = CumpleanosConfig.query.order_by(CumpleanosConfig.id.desc()).all()
-
+        # 1. Manejo del formulario de Configuración
         if request.method == 'POST':
-            evento_id = int(request.form['evento_id'])
-            fecha_inicio = datetime.strptime(request.form['fecha_inicio_cumple'], '%Y-%m-%d').date()
-            fecha_fin = datetime.strptime(request.form['fecha_fin_cumple'], '%Y-%m-%d').date()
-            limite_amigos = int(request.form['limite_amigos'])
-            vence_el = datetime.strptime(request.form['vence_el'], '%Y-%m-%dT%H:%M')
+            config_id = request.form.get('config_id')
+            config = CumpleanosConfig.query.get(config_id) if config_id else CumpleanosConfig()
 
-            nueva_cfg = CumpleanosConfig(
-                evento_id=evento_id,
-                fecha_inicio_cumple=fecha_inicio,
-                fecha_fin_cumple=fecha_fin,
-                limite_amigos=limite_amigos,
-                vence_el=vence_el,
-                activo=True
-            )
-            db.session.add(nueva_cfg)
+            config.titulo = request.form.get('titulo', 'Beneficio Cumpleaños')
+            config.limite_amigos = int(request.form.get('limite_amigos', 5))
+            config.activo = 'activo' in request.form
+
+            # Rango de fechas habilitadas (Mes/Día)
+            ini_m = int(request.form.get('ini_mes', 1))
+            ini_d = int(request.form.get('ini_dia', 1))
+            fin_m = int(request.form.get('fin_mes', 12))
+            fin_d = int(request.form.get('fin_dia', 31))
+
+            config.fecha_inicio_cumple = date(2024, ini_m, ini_d)
+            config.fecha_fin_cumple = date(2024, fin_m, fin_d)
+
+            # Vencimiento con Timezone Argentina
+            vence_str = request.form.get('vence_el')
+            if vence_str:
+                dt_naive = datetime.strptime(vence_str, '%Y-%m-%dT%H:%M')
+                config.vence_el = dt_naive.replace(tzinfo=ZoneInfo("America/Argentina/Buenos_Aires"))
+
+            db.session.add(config)
             db.session.commit()
-            flash('Configuración de cumpleaños guardada correctamente.', 'success')
+            flash('Configuración de cumpleaños actualizada correctamente.', 'success')
             return redirect(url_for('admin_cumpleanos'))
 
-        return render_template('admin_cumpleanos.html', eventos=eventos, configs=configs)
+        # 2. Cargar Configuración Actual
+        config = CumpleanosConfig.query.order_by(CumpleanosConfig.id.desc()).first()
+        if not config:
+            config = CumpleanosConfig(
+                titulo="Beneficio Cumpleaños ANANA",
+                limite_amigos=5,
+                fecha_inicio_cumple=date(2024, 1, 1),
+                fecha_fin_cumple=date(2024, 12, 31),
+                vence_el=datetime.now(ZoneInfo("America/Argentina/Buenos_Aires")),
+                activo=True
+            )
+            db.session.add(config)
+            db.session.commit()
+
+        # 3. Listado de Registros & Métricas
+        q = request.args.get('q', '').strip()
+        filtro_estado = request.args.get('estado', 'todos')
+
+        query = CumpleanosRegistro.query
+        if q:
+            fmt = f"%{q}%"
+            query = query.filter(
+                db.or_(
+                    CumpleanosRegistro.nombre_completo.ilike(fmt),
+                    CumpleanosRegistro.dni.ilike(fmt),
+                    CumpleanosRegistro.codigo_qr.ilike(fmt)
+                )
+            )
+
+        registros_raw = query.order_by(CumpleanosRegistro.creado_en.desc()).all()
+        ahora_ar = datetime.now(ZoneInfo("America/Argentina/Buenos_Aires"))
+
+        registros = []
+        totales = {
+            'total': len(registros_raw),
+            'ingresaron': 0,
+            'pendientes': 0,
+            'amigos_total': 0,
+            'amigos_ingresaron': 0
+        }
+
+        for reg in registros_raw:
+            reg_config = CumpleanosConfig.query.get(reg.config_id)
+            es_valido = False
+            if reg_config:
+                vence = reg_config.vence_el
+                if vence.tzinfo is None:
+                    vence = vence.replace(tzinfo=ZoneInfo("America/Argentina/Buenos_Aires"))
+                es_valido = reg_config.activo and (ahora_ar <= vence)
+
+            amigos_count = len(reg.amigos)
+            amigos_ingresados = sum(1 for a in reg.amigos if a.ingresado)
+
+            totales['amigos_total'] += amigos_count
+            totales['amigos_ingresaron'] += amigos_ingresados
+
+            if reg.cumpleaniero_ingreso:
+                totales['ingresaron'] += 1
+            else:
+                totales['pendientes'] += 1
+
+            incluir = True
+            if filtro_estado == 'ingresaron' and not reg.cumpleaniero_ingreso:
+                incluir = False
+            elif filtro_estado == 'pendientes' and reg.cumpleaniero_ingreso:
+                incluir = False
+            elif filtro_estado == 'vigentes' and not es_valido:
+                incluir = False
+
+            if incluir:
+                registros.append({
+                    'registro': reg,
+                    'config': reg_config,
+                    'es_valido': es_valido,
+                    'amigos_count': amigos_count,
+                    'amigos_ingresados': amigos_ingresados
+                })
+
+        return render_template(
+            'admin_cumpleanos.html',
+            config=config,
+            registros=registros,
+            totales=totales,
+            q=q,
+            filtro_estado=filtro_estado
+        )
 
     @app.route('/cumpleanos/<int:config_id>', methods=['GET', 'POST'])
     def registro_cumpleanos(config_id):
