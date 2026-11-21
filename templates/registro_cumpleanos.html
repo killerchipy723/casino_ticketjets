@@ -13,6 +13,7 @@
   --accent-warm: #c86432;
   --text-main: #f6f3ec;
   --text-muted: #aba3b8;
+  --placeholder-soft: #c8c3d1;
 }
 
 body {
@@ -63,25 +64,24 @@ body {
   box-shadow: 0 0 0 0.2rem rgba(226, 180, 93, 0.2);
 }
 
-/* Placeholders visibles y claros sobre fondo oscuro */
 .form-control::placeholder,
 .amigo-row .form-control::placeholder,
 .box-cumple input::placeholder {
-  color: rgba(246, 243, 236, 0.78) !important;
+  color: var(--placeholder-soft) !important;
   opacity: 1 !important;
 }
 
 .form-control::-webkit-input-placeholder,
 .amigo-row .form-control::-webkit-input-placeholder,
 .box-cumple input::-webkit-input-placeholder {
-  color: rgba(246, 243, 236, 0.78) !important;
+  color: var(--placeholder-soft) !important;
   opacity: 1 !important;
 }
 
 .form-control::-moz-placeholder,
 .amigo-row .form-control::-moz-placeholder,
 .box-cumple input::-moz-placeholder {
-  color: rgba(246, 243, 236, 0.78) !important;
+  color: var(--placeholder-soft) !important;
   opacity: 1 !important;
 }
 
