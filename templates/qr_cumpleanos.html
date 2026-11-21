@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tu QR de Cumpleaños — ANANA CLUB</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <style>
+    :root {
+      --bg-dark: #0e0d12;
+      --bg-card: #18161f;
+      --accent-gold: #e2b45d;
+      --accent-warm: #c86432;
+      --text-main: #f6f3ec;
+      --text-muted: #aba3b8;
+    }
+    body {
+      background: radial-gradient(circle at top, #241926 0%, var(--bg-dark) 65%);
+      color: var(--text-main);
+      min-height: 100vh;
+    }
+    .qr-card {
+      background-color: var(--bg-card);
+      border: 1px solid rgba(226, 180, 93, 0.3);
+      border-radius: 18px;
+      box-shadow: 0 18px 45px rgba(0, 0, 0, 0.55);
+    }
+    .text-gold { color: var(--accent-gold) !important; }
+    .text-muted-custom { color: var(--text-muted); }
+    .qr-box {
+      background: #ffffff;
+      padding: 16px;
+      border-radius: 14px;
+      display: inline-block;
+    }
+    .qr-box.vencido {
+      filter: grayscale(100%) opacity(0.35);
+    }
+  </style>
+</head>
+<body>
+  <div class="container py-4 py-md-5">
+    <div class="row justify-content-center">
+      <div class="col-12 col-md-7 col-lg-5">
+        <div class="qr-card p-4 text-center" id="tarjetaQr" data-codigo-qr="{{ registro.codigo_qr }}">
+          <span class="badge rounded-pill text-bg-warning text-dark mb-2 px-3 py-2">ANANA CLUB • PASE CUMPLEAÑOS</span>
+          <h1 class="h4 fw-bold text-gold mb-1">{{ registro.nombre_completo }}</h1>
+          <p class="text-muted-custom small mb-3">
+            DNI: <strong class="text-light">{{ registro.dni }}</strong> •
+            Nac: <strong class="text-light">{{ registro.fecha_nacimiento.strftime('%d/%m/%Y') }}</strong>
+          </p>
+
+          {% if qr_valido %}
+            <div class="alert alert-dark border-warning text-warning py-2 small mb-3">
+              Beneficio válido hasta el <strong>{{ vence_texto }}</strong>.
+            </div>
+            <div class="qr-box mb-3" id="qrCanvasContainer"></div>
+          {% else %}
+            <div class="alert alert-danger py-2 small mb-3">
+              <strong>QR INHABILITADO / VENCIDO:</strong> Este beneficio venció el <strong>{{ vence_texto }}</strong>.
+            </div>
+            <div class="qr-box vencido mb-3" id="qrCanvasContainer"></div>
+          {% endif %}
+
+          <div class="fw-bold fs-5 text-gold mb-3">{{ registro.codigo_qr }}</div>
+
+          <div class="text-start bg-dark bg-opacity-50 rounded-3 p-3 mb-3 border border-secondary border-opacity-25">
+            <div class="small text-gold fw-semibold mb-2">
+              Amigos cargados ({{ registro.amigos|length }} / {{ config.limite_amigos }}):
+            </div>
+            {% if registro.amigos %}
+              <ul class="list-unstyled mb-0 small">
+                {% for am in registro.amigos %}
+                  <li class="d-flex justify-content-between align-items-center py-1 border-bottom border-secondary border-opacity-10">
+                    <span>{{ am.nombre_completo }}{% if am.dni %} <span class="text-muted-custom">(DNI {{ am.dni }})</span>{% endif %}</span>
+                    {% if am.ingresado %}
+                      <span class="badge bg-success">Ingresó</span>
+                    {% else %}
+                      <span class="badge bg-secondary">Pendiente</span>
+                    {% endif %}
+                  </li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <div class="small text-muted-custom">Sin amigos cargados.</div>
+            {% endif %}
+          </div>
+
+          <p class="text-muted-custom small mb-0">
+            Presentá este QR y tu DNI físico en puerta antes de <strong>{{ vence_texto }}</strong>.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+  <script src="{{ url_for('static', filename='js/qr_cumpleanos.js') }}"></script>
+</body>
+</html>

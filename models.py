@@ -156,3 +156,44 @@ class BeneficioPasaporte(db.Model):
     estado = db.Column(db.String(20), default='disponible') # disponible, canjeado, vencido
     fecha_vencimiento = db.Column(db.DateTime, nullable=True)
     fecha_canje = db.Column(db.DateTime, nullable=True)
+
+# -------------------- seccion cumpleaños -------------------------------------------------
+from extensions import db
+from datetime import datetime
+
+class CumpleanosConfig(db.Model):
+    __tablename__ = 'cumpleanos_config'
+    id = db.Column(db.Integer, primary_key=True)
+    evento_id = db.Column(db.Integer, nullable=False)
+    fecha_inicio_cumple = db.Column(db.Date, nullable=False)
+    fecha_fin_cumple = db.Column(db.Date, nullable=False)
+    limite_amigos = db.Column(db.Integer, nullable=False, default=5)
+    vence_el = db.Column(db.DateTime, nullable=False)
+    activo = db.Column(db.Boolean, nullable=False, default=True)
+    creado_en = db.Column(db.DateTime, default=datetime.utcnow)
+
+class CumpleanosRegistro(db.Model):
+    __tablename__ = 'cumpleanos_registro'
+    id = db.Column(db.Integer, primary_key=True)
+    config_id = db.Column(db.Integer, db.ForeignKey('cumpleanos_config.id'), nullable=False)
+    evento_id = db.Column(db.Integer, nullable=False)
+    dni = db.Column(db.String(20), nullable=False)
+    nombre_completo = db.Column(db.String(120), nullable=False)
+    fecha_nacimiento = db.Column(db.Date, nullable=False)
+    telefono = db.Column(db.String(30))
+    email = db.Column(db.String(120))
+    codigo_qr = db.Column(db.String(64), unique=True, nullable=False)
+    cumpleaniero_ingreso = db.Column(db.Boolean, default=False)
+    fecha_ingreso_cumpleaniero = db.Column(db.DateTime)
+    creado_en = db.Column(db.DateTime, default=datetime.utcnow)
+
+    amigos = db.relationship('CumpleanosAmigo', backref='registro', cascade='all, delete-orphan', lazy=True)
+
+class CumpleanosAmigo(db.Model):
+    __tablename__ = 'cumpleanos_amigo'
+    id = db.Column(db.Integer, primary_key=True)
+    registro_id = db.Column(db.Integer, db.ForeignKey('cumpleanos_registro.id'), nullable=False)
+    nombre_completo = db.Column(db.String(120), nullable=False)
+    dni = db.Column(db.String(20))
+    ingresado = db.Column(db.Boolean, default=False)
+    fecha_ingreso = db.Column(db.DateTime)

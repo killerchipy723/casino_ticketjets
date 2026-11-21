@@ -1,12 +1,13 @@
 from flask import render_template, request, redirect, url_for, flash, session, jsonify, send_file, current_app
 from extensions import db, mail
-from models import Evento, Cliente, Premio, Ganador, Usuario, TicketQR, HistorialCanje, BeneficioPasaporte, InvitadoCumpleanios
+from models import Evento, Cliente, Premio, Ganador, Usuario, TicketQR, HistorialCanje, BeneficioPasaporte, InvitadoCumpleanios, CumpleanosConfig, CumpleanosRegistro, CumpleanosAmigo
 from datetime import datetime, timedelta
 from functools import wraps
 import random
 import urllib.parse
 import uuid
 import io
+import base64
 import qrcode
 from sqlalchemy import func
 from reportlab.lib.pagesizes import letter
@@ -19,9 +20,34 @@ from werkzeug.utils import secure_filename
 import os
 import threading
 from flask_mail import Message
+from zoneinfo import ZoneInfo
 
 UPLOAD_FOLDER_SELFIES = os.path.join('static', 'uploads', 'selfies')
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}
+
+TZ_AR = ZoneInfo("America/Argentina/Buenos_Aires")
+
+
+def ahora_argentina():
+    """Devuelve datetime naive en hora real de Argentina para comparar con BD."""
+    return datetime.now(TZ_AR).replace(tzinfo=None)
+
+
+def cumple_en_rango(fecha_nac, fecha_inicio, fecha_fin):
+    """Compara mes-día (MM-DD) manejando rangos que cruzan de año (ej. dic -> ene)."""
+    md_nac = (fecha_nac.month, fecha_nac.day)
+    md_ini = (fecha_inicio.month, fecha_inicio.day)
+    md_fin = (fecha_fin.month, fecha_fin.day)
+
+    if md_ini <= md_fin:
+        return md_ini <= md_nac <= md_fin
+    else:
+        return md_nac >= md_ini or md_nac <= md_fin
+
+
+def archivo_permitido(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
 
 # --- DECORADOR DE ROLES ---
 def login_required(roles=None):
@@ -38,7 +64,62 @@ def login_required(roles=None):
         return decorated_function
     return decorator
 
-def registrar_rutas(app): 
+
+# ----------------------------- ENVIO DE MENSAJE DE BIENVENIDA ---------------------------------
+
+def enviar_correo_bienvenida_async(app, cliente_id):
+    """Envía el correo de bienvenida en segundo plano dentro del contexto de Flask."""
+    with app.app_context():
+        cliente = Cliente.query.get(cliente_id)
+        if not cliente:
+            return
+
+        try:
+            url_tarjeta = f"https://ananaclub.online/fidelizacion/tarjeta/{cliente.dni}"
+            asunto = "🍸 ¡Bienvenido a ANANA CLUB! Tu Tarjeta VIP ya está lista"
+
+            cuerpo_html = f"""
+            <div style="background-color: #08080c; color: #ffffff; padding: 30px; font-family: 'Montserrat', Arial, sans-serif; border-radius: 12px; max-width: 600px; margin: auto;">
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <h2 style="color: #d4af37; margin: 0; font-size: 28px;">ANANA CLUB</h2>
+                    <p style="font-size: 14px; color: #b0b0b0; margin-top: 5px;">Membresía VIP & Pasaporte Digital</p>
+                </div>
+                
+                <p>Hola <strong style="color: #d4af37;">{cliente.nombre_completo}</strong>,</p>
+                <p>¡Gracias por sumarte! Tu registro en <strong>ANANA CLUB</strong> se ha completado con éxito.</p>
+                
+                <div style="background: #12121a; border: 1px solid #d4af37; padding: 20px; border-radius: 10px; text-align: center; margin: 25px 0;">
+                    <p style="margin: 0 0 5px 0; font-size: 12px; color: #d4af37; text-transform: uppercase; font-weight: bold;">Código de Socio:</p>
+                    <h3 style="margin: 0; color: #ffffff; font-family: monospace; font-size: 22px;">{cliente.codigo_membresia}</h3>
+                </div>
+                
+                <p>Accede a tu pasaporte digital para consultar tu QR de acceso, puntos acumulados y consumiciones de bienvenida:</p>
+                
+                <div style="text-align: center; margin: 30px 0;">
+                    <a href="{url_tarjeta}" style="background: linear-gradient(45deg, #d4af37, #f9e076); color: #000000; padding: 14px 28px; text-decoration: none; font-weight: bold; border-radius: 50px; display: inline-block; text-transform: uppercase; font-size: 13px; letter-spacing: 1px;">VER MI TARJETA VIP</a>
+                </div>
+                
+                <hr style="border: 0; border-top: 1px solid #222; margin: 30px 0;">
+                <p style="font-size: 11px; color: #666666; text-align: center; margin: 0;">
+                    ANANA CLUB — Sistema de Fidelización.<br>Si no solicitaste este alta, puedes ignorar este mensaje.
+                </p>
+            </div>
+            """
+
+            msg = Message(asunto, recipients=[cliente.email], html=cuerpo_html)
+            mail.send(msg)
+            print(f"[OK] Correo de bienvenida enviado a {cliente.email}")
+        except Exception as e:
+            print(f"[ERROR] Falló el envío de correo a {cliente.email}: {e}")
+
+
+def disparar_correo_bienvenida(cliente_id):
+    """Obtiene la instancia actual de la app y lanza el hilo secundario."""
+    app = current_app._get_current_object()
+    threading.Thread(target=enviar_correo_bienvenida_async, args=(app, cliente_id)).start()
+
+
+def registrar_rutas(app):
 
     # ==========================================
     # 🎰 RUTAS DE LA RULETA (PRESERVADAS)
@@ -52,12 +133,18 @@ def registrar_rutas(app):
     @app.route('/girar', methods=['POST'])
     def girar():
         evento_activo = Evento.query.filter_by(es_evento_actual=True, estado='activo').first()
-        if not evento_activo: return jsonify({"error": "No hay un evento activo."}), 400
+        if not evento_activo:
+            return jsonify({"error": "No hay un evento activo."}), 400
         premios_activos = Premio.query.filter_by(evento_id=evento_activo.id, activo=True).all()
-        if not premios_activos: return jsonify({"error": "No hay premios."}), 400
+        if not premios_activos:
+            return jsonify({"error": "No hay premios."}), 400
         pesos = [p.probabilidad for p in premios_activos]
         premio_ganado = random.choices(premios_activos, weights=pesos, k=1)[0]
-        session['premio_provisional'] = {'evento_id': evento_activo.id, 'premio': premio_ganado.titulo, 'es_joker': premio_ganado.es_joker}
+        session['premio_provisional'] = {
+            'evento_id': evento_activo.id,
+            'premio': premio_ganado.titulo,
+            'es_joker': premio_ganado.es_joker
+        }
         return jsonify({"success": True, "premio": premio_ganado.titulo, "es_joker": premio_ganado.es_joker})
 
     @app.route('/guardar_ganador', methods=['POST'])
@@ -65,21 +152,40 @@ def registrar_rutas(app):
         datos_json = request.get_json(force=True, silent=True) or request.form
         nombre, telefono = datos_json.get('nombre'), datos_json.get('telefono')
         premio_prov = session.get('premio_provisional')
-        if not premio_prov or not nombre or not telefono: return jsonify({"error": "Sesión expirada."}), 400
+        if not premio_prov or not nombre or not telefono:
+            return jsonify({"error": "Sesión expirada."}), 400
         codigo_ticket = f"ANANA-{uuid.uuid4().hex[:8].upper()}"
-        nuevo_ganador = Ganador(evento_id=premio_prov['evento_id'], nombre=nombre, telefono=telefono, premio=premio_prov['premio'], codigo_ticket=codigo_ticket)
+        nuevo_ganador = Ganador(
+            evento_id=premio_prov['evento_id'],
+            nombre=nombre,
+            telefono=telefono,
+            premio=premio_prov['premio'],
+            codigo_ticket=codigo_ticket
+        )
         db.session.add(nuevo_ganador)
         db.session.commit()
-        session['ultimo_ganador'] = {'id': nuevo_ganador.id, 'nombre': nombre, 'telefono': telefono, 'premio': premio_prov['premio'], 'codigo_ticket': codigo_ticket}
+        session['ultimo_ganador'] = {
+            'id': nuevo_ganador.id,
+            'nombre': nombre,
+            'telefono': telefono,
+            'premio': premio_prov['premio'],
+            'codigo_ticket': codigo_ticket
+        }
         session.pop('premio_provisional', None)
         return jsonify({"success": True})
 
     @app.route('/reclamar')
     def reclamar():
         datos = session.get('ultimo_ganador')
-        if not datos: return redirect(url_for('index'))
+        if not datos:
+            return redirect(url_for('index'))
         num_whatsapp = "5493876552273"
-        mensaje = f"¡Hola! Gané en ANANA CLUB 🎉\n🎁 Premio: {datos['premio']}\n👤 Nombre: {datos['nombre']}\n🎫 Ticket: {datos['codigo_ticket']}"
+        mensaje = (
+            f"¡Hola! Gané en ANANA CLUB 🎉\n"
+            f"🎁 Premio: {datos['premio']}\n"
+            f"👤 Nombre: {datos['nombre']}\n"
+            f"🎫 Ticket: {datos['codigo_ticket']}"
+        )
         link_whatsapp = f"https://wa.me/{num_whatsapp}?text={urllib.parse.quote(mensaje)}"
         return render_template('gracias.html', datos=datos, link_whatsapp=link_whatsapp)
 
@@ -94,11 +200,11 @@ def registrar_rutas(app):
         c.setStrokeColor(colors.HexColor('#d4af37'))
         c.setLineWidth(2.5)
         c.roundRect(card_x, card_y, card_w, card_h, 16, fill=0, stroke=1)
-        
+
         c.setFillColor(colors.HexColor('#d4af37'))
         c.setFont("Helvetica-Bold", 20)
         c.drawCentredString(card_x + (card_w / 2), card_y + card_h - 45, "ANANA CLUB 🍍")
-        
+
         url_validacion = f"https://ananaclub.online/admin/validar/{ganador.codigo_ticket}"
         qr = qrcode.QRCode(version=1, box_size=10, border=2)
         qr.add_data(url_validacion)
@@ -110,8 +216,12 @@ def registrar_rutas(app):
         c.drawImage(ImageReader(img_buffer), card_x + 135, card_y + 115, width=150, height=150)
         c.save()
         buffer.seek(0)
-        return send_file(buffer, as_attachment=True, download_name=f"Ticket_{ganador.codigo_ticket}.pdf", mimetype='application/pdf')
-
+        return send_file(
+            buffer,
+            as_attachment=True,
+            download_name=f"Ticket_{ganador.codigo_ticket}.pdf",
+            mimetype='application/pdf'
+        )
 
     # ==========================================
     # 🔐 AUTENTICACIÓN MULTINIVEL (LOGIN GENERAL)
@@ -121,11 +231,8 @@ def registrar_rutas(app):
         if request.method == 'POST':
             username = request.form.get('username', '').strip()
             password = request.form.get('password', '').strip()
-            
-            # Verificamos usuario y que esté activo
+
             usuario = Usuario.query.filter_by(username=username, activo=True).first()
-            
-            # Opcional: Para darle un mensaje más claro si está inhabilitado
             usuario_inactivo = Usuario.query.filter_by(username=username, activo=False).first()
 
             if usuario and usuario.check_password(password):
@@ -137,7 +244,7 @@ def registrar_rutas(app):
                 flash('🚫 Tu cuenta ha sido inhabilitada por la administración.', 'danger')
             else:
                 flash('Usuario o contraseña incorrectos.', 'danger')
-                
+
         return render_template('auth/login.html')
 
     @app.route('/logout')
@@ -158,7 +265,6 @@ def registrar_rutas(app):
         else:
             return redirect(url_for('rrpp_dashboard'))
 
-
     # ==========================================
     # 🎟️ PANEL RRPP / VENDEDORES (MULTIEVENTO)
     # ==========================================
@@ -169,20 +275,25 @@ def registrar_rutas(app):
         evento_activo = Evento.query.filter_by(es_evento_actual=True, estado='activo').first()
 
         if evento_activo:
-            tickets = TicketQR.query.filter_by(vendedor_id=usuario_id, evento_id=evento_activo.id).order_by(TicketQR.fecha_creacion.desc()).all()
+            tickets = TicketQR.query.filter_by(
+                vendedor_id=usuario_id,
+                evento_id=evento_activo.id
+            ).order_by(TicketQR.fecha_creacion.desc()).all()
         else:
             tickets = []
-        
+
         total_generados = len(tickets)
         total_canjeados = sum(1 for t in tickets if t.estado == 'canjeado')
         total_parciales = sum(1 for t in tickets if t.estado == 'parcial')
 
-        return render_template('rrpp/dashboard.html', 
-                               tickets=tickets, 
-                               evento_activo=evento_activo,
-                               total_generados=total_generados, 
-                               total_canjeados=total_canjeados, 
-                               total_parciales=total_parciales)
+        return render_template(
+            'rrpp/dashboard.html',
+            tickets=tickets,
+            evento_activo=evento_activo,
+            total_generados=total_generados,
+            total_canjeados=total_canjeados,
+            total_parciales=total_parciales
+        )
 
     @app.route('/rrpp/generar_pase', methods=['POST'])
     @login_required(roles=['rrpp', 'supervisor', 'admin'])
@@ -192,17 +303,16 @@ def registrar_rutas(app):
             return jsonify({"success": False, "error": "No hay ningún evento activo configurado."}), 400
 
         datos_json = request.get_json(force=True, silent=True) or request.form
-        
+
         nombre = datos_json.get('nombre')
         dni = datos_json.get('dni')
         whatsapp = str(datos_json.get('whatsapp', '')).replace('+', '').replace(' ', '').replace('-', '')
-        
+
         try:
             cantidad = int(datos_json.get('cantidad', 1))
         except (ValueError, TypeError):
             cantidad = 1
 
-        # Control estricto: Solo Admin/Supervisor pueden emitir Cortesías
         rol_usuario = session.get('usuario_rol')
         es_cortesia_req = datos_json.get('es_cortesia') in [True, 'true', '1', 'on']
         es_cortesia_final = es_cortesia_req if rol_usuario in ['admin', 'supervisor'] else False
@@ -222,13 +332,13 @@ def registrar_rutas(app):
             total_entradas=cantidad,
             entradas_usadas=0,
             estado='pendiente',
-            es_cortesia=es_cortesia_final # <--- Se asigna según rol
+            es_cortesia=es_cortesia_final
         )
         db.session.add(nuevo_ticket)
         db.session.commit()
 
         link_pdf = url_for('descargar_pdf_rrpp', codigo=codigo_ticket, _external=True)
-        
+
         tipo_pass = "PASE DE CORTESÍA (VIP SIN LÍMITE HORARIO)" if es_cortesia_final else "Pase VIP"
         mensaje = (
             f"¡Hola {nombre}! 🎉 Aquí tienes tu {tipo_pass} para ANANA CLUB ({evento_activo.nombre}).\n\n"
@@ -238,14 +348,14 @@ def registrar_rutas(app):
             f"Descarga tu ticket digital aquí:\n{link_pdf}"
         )
         link_wa = f"https://wa.me/{whatsapp}?text={urllib.parse.quote(mensaje)}"
-        
+
         return jsonify({"success": True, "link_whatsapp": link_wa, "codigo_ticket": codigo_ticket})
 
     # PDF del Pase (Público para descarga desde WhatsApp)
     @app.route('/rrpp/ticket/pdf/<codigo>')
     def descargar_pdf_rrpp(codigo):
         ticket = TicketQR.query.filter_by(codigo_qr=codigo).first_or_404()
-        
+
         qr_img = qrcode.make(ticket.codigo_qr)
         qr_path = f"temp_qr_{codigo}.png"
         qr_img.save(qr_path)
@@ -257,20 +367,19 @@ def registrar_rutas(app):
             rightMargin=40, leftMargin=40,
             topMargin=40, bottomMargin=40
         )
-        
+
         story = []
         styles = getSampleStyleSheet()
 
-        # 🎨 ESQUEMA DE COLORES DINÁMICO (Gold vs Silver)
         if ticket.es_cortesia:
-            color_principal = colors.HexColor('#A6A6A6')      # Plateado Principal
-            color_borde = colors.HexColor('#CCCCCC')          # Borde Silver
-            color_fondo = colors.HexColor('#F5F5F7')          # Fondo Gris Platino
+            color_principal = colors.HexColor('#A6A6A6')
+            color_borde = colors.HexColor('#CCCCCC')
+            color_fondo = colors.HexColor('#F5F5F7')
             titulo_texto = "CORTESÍA SPECIAL PASS ✨"
         else:
-            color_principal = colors.HexColor('#D4AF37')      # Dorado Principal
-            color_borde = colors.HexColor('#E5D8B0')          # Borde Gold
-            color_fondo = colors.HexColor('#FDFBF7')          # Fondo Gold Warm
+            color_principal = colors.HexColor('#D4AF37')
+            color_borde = colors.HexColor('#E5D8B0')
+            color_fondo = colors.HexColor('#FDFBF7')
             titulo_texto = "VIP PASS 🎫"
 
         estilo_titulo = ParagraphStyle(
@@ -278,7 +387,7 @@ def registrar_rutas(app):
             fontName='Helvetica-Bold', fontSize=18,
             textColor=color_principal, alignment=1, spaceAfter=10
         )
-        
+
         estilo_sub = ParagraphStyle(
             'SubVIP', parent=styles['Normal'],
             fontName='Helvetica', fontSize=10,
@@ -301,21 +410,20 @@ def registrar_rutas(app):
         try:
             story.append(Image(logo_path, width=120, height=60))
             story.append(Spacer(1, 10))
-        except:
+        except Exception:
             pass
 
-        # --- FLYER DINÁMICO DEL EVENTO ---
         if ticket.evento and ticket.evento.imagen_flyer:
             flyer_path = os.path.join('static', 'uploads', ticket.evento.imagen_flyer)
             if os.path.exists(flyer_path):
                 try:
                     img_read = ImageReader(flyer_path)
                     orig_w, orig_h = img_read.getSize()
-                    
+
                     max_w = 180
                     aspect_ratio = orig_h / orig_w
                     new_h = max_w * aspect_ratio
-                    
+
                     story.append(Image(flyer_path, width=max_w, height=new_h))
                     story.append(Spacer(1, 10))
                 except Exception as e:
@@ -338,18 +446,17 @@ def registrar_rutas(app):
 
         tabla_ticket = Table(data_tabla, colWidths=[300])
         tabla_ticket.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,-1), color_fondo),
-            ('BOX', (0,0), (-1,-1), 2, color_principal),
-            ('INNERGRID', (0,0), (-1,-1), 0.5, color_borde),
-            ('TOPPADDING', (0,0), (-1,-1), 10),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 10),
-            ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+            ('BACKGROUND', (0, 0), (-1, -1), color_fondo),
+            ('BOX', (0, 0), (-1, -1), 2, color_principal),
+            ('INNERGRID', (0, 0), (-1, -1), 0.5, color_borde),
+            ('TOPPADDING', (0, 0), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ]))
 
         story.append(tabla_ticket)
         story.append(Spacer(1, 20))
-        
-        # Leyenda Footer diferenciada
+
         f_inicio_fmt = ticket.evento.fecha_inicio.strftime('%d/%m/%Y a las %H:%M hs') if ticket.evento else "Fecha indicada"
         f_fin_fmt = ticket.evento.fecha_fin.strftime('%d/%m/%Y a las %H:%M hs') if ticket.evento else "Hora indicada"
 
@@ -358,15 +465,15 @@ def registrar_rutas(app):
             fontName='Helvetica-Oblique', fontSize=8,
             textColor=colors.HexColor('#666666'), alignment=1
         )
-        
+
         if ticket.es_cortesia:
             texto_leyenda = f"✨ **PASE DE CORTESÍA VIP**: Pase personal e intransferible. Válido para el evento ({f_inicio_fmt}). **Sin restricción de horario de ingreso**."
         else:
             texto_leyenda = f"Este pase es personal e intransferible. Válido únicamente dentro del horario del evento indicado: del {f_inicio_fmt} al {f_fin_fmt}."
-        
+
         story.append(Paragraph(texto_leyenda, estilo_footer))
         doc.build(story)
-        
+
         if os.path.exists(qr_path):
             os.remove(qr_path)
 
@@ -386,12 +493,12 @@ def registrar_rutas(app):
     @login_required(roles=['portero', 'admin', 'supervisor'])
     def portero_dashboard():
         evento_activo = Evento.query.filter_by(es_evento_actual=True, estado='activo').first()
-        
+
         if evento_activo:
             tickets = TicketQR.query.filter_by(evento_id=evento_activo.id).all()
         else:
             tickets = []
-        
+
         pendientes = sum(1 for t in tickets if t.estado == 'pendiente')
         parciales = sum(1 for t in tickets if t.estado == 'parcial')
         canjeados = sum(1 for t in tickets if t.estado == 'canjeado')
@@ -399,14 +506,16 @@ def registrar_rutas(app):
         anulados = sum(1 for t in tickets if t.estado == 'anulado')
         total_pases = len(tickets)
 
-        return render_template('portero/dashboard.html',
-                               evento_activo=evento_activo,
-                               pendientes=pendientes,
-                               parciales=parciales,
-                               canjeados=canjeados,
-                               vencidos=vencidos,
-                               anulados=anulados,
-                               total_pases=total_pases)
+        return render_template(
+            'portero/dashboard.html',
+            evento_activo=evento_activo,
+            pendientes=pendientes,
+            parciales=parciales,
+            canjeados=canjeados,
+            vencidos=vencidos,
+            anulados=anulados,
+            total_pases=total_pases
+        )
 
     # ==========================================
     # 📷 ESCANEO Y VALIDACIÓN (ADMIN, SUP, PORTERO)
@@ -420,8 +529,7 @@ def registrar_rutas(app):
     @login_required(roles=['admin', 'supervisor', 'portero'])
     def validar_ticket(codigo):
         ticket = TicketQR.query.filter_by(codigo_qr=codigo).first()
-        
-        # Si el ticket existe y NO está anulado, actualizamos su estado por fecha/uso
+
         if ticket and ticket.estado != 'anulado':
             ticket.actualizar_estado()
             db.session.commit()
@@ -431,7 +539,6 @@ def registrar_rutas(app):
                 flash('El ticket no existe.', 'danger')
                 return redirect(url_for('vista_escaneo'))
 
-            # Bloqueo estricto para tickets anulados
             if ticket.estado == 'anulado':
                 flash('🚫 ESTE PASE FUE ANULADO POR LA ADMINISTRACIÓN.', 'danger')
                 return redirect(url_for('validar_ticket', codigo=codigo))
@@ -441,7 +548,7 @@ def registrar_rutas(app):
                 return redirect(url_for('validar_ticket', codigo=codigo))
 
             disponibles = ticket.total_entradas - ticket.entradas_usadas
-            
+
             try:
                 ingresan = int(request.form.get('entradas_a_ingresar', 0))
             except ValueError:
@@ -478,13 +585,15 @@ def registrar_rutas(app):
             tickets = TicketQR.query.order_by(TicketQR.fecha_creacion.desc()).all()
 
         vendedores = Usuario.query.filter(Usuario.rol != 'admin').all()
-        
-        return render_template('admin/dashboard_rrpp.html', 
-                               tickets=tickets, 
-                               vendedores=vendedores, 
-                               eventos=eventos, 
-                               evento_activo=evento_activo,
-                               evento_id_filtro=evento_id_filtro)
+
+        return render_template(
+            'admin/dashboard_rrpp.html',
+            tickets=tickets,
+            vendedores=vendedores,
+            eventos=eventos,
+            evento_activo=evento_activo,
+            evento_id_filtro=evento_id_filtro
+        )
 
     @app.route('/supervisor')
     @login_required(roles=['supervisor', 'admin'])
@@ -498,7 +607,7 @@ def registrar_rutas(app):
         nombre = request.form.get('nombre')
         f_inicio_str = request.form.get('fecha_inicio')
         f_fin_str = request.form.get('fecha_fin')
-        
+
         imagen_filename = None
         if 'imagen_flyer' in request.files:
             file = request.files['imagen_flyer']
@@ -506,7 +615,7 @@ def registrar_rutas(app):
                 filename = secure_filename(file.filename)
                 upload_folder = 'static/uploads'
                 os.makedirs(upload_folder, exist_ok=True)
-                
+
                 imagen_filename = f"flyer_{uuid.uuid4().hex[:6]}_{filename}"
                 file.save(os.path.join(upload_folder, imagen_filename))
 
@@ -543,7 +652,7 @@ def registrar_rutas(app):
         evento.es_evento_actual = True
         evento.estado = 'activo'
         db.session.commit()
-        
+
         flash(f'⭐ Evento "{evento.nombre}" marcado como evento activo actual.', 'success')
         return redirect(url_for('admin_dashboard'))
 
@@ -585,20 +694,18 @@ def registrar_rutas(app):
         if not evento_activo:
             flash('No hay ningún evento activo configurado.', 'warning')
             return redirect(url_for('admin_dashboard'))
-        
-        # 1. Inhabilitamos al vendedor para que no pueda seguir emitiendo pases
+
         vendedor = Usuario.query.get_or_404(vendedor_id)
         vendedor.activo = False
 
-        # 2. Anulamos todos los tickets activos/pendientes/parciales del vendedor para este evento
         tickets = TicketQR.query.filter_by(vendedor_id=vendedor_id, evento_id=evento_activo.id).all()
-        
+
         contador = 0
         for t in tickets:
             if t.estado in ['pendiente', 'parcial']:
                 t.estado = 'anulado'
                 contador += 1
-                
+
         db.session.commit()
         flash(f'⛔ Se inhabilitó al vendedor {vendedor.nombre_completo} y se anularon sus {contador} pases activos.', 'danger')
         return redirect(url_for('admin_dashboard'))
@@ -610,10 +717,10 @@ def registrar_rutas(app):
         if usuario.id == session.get('usuario_id'):
             flash('No puedes desactivar tu propia cuenta.', 'danger')
             return redirect(url_for('admin_dashboard'))
-        
+
         usuario.activo = not usuario.activo
         db.session.commit()
-        
+
         estado_txt = "activado" if usuario.activo else "inhabilitado"
         flash(f'👤 El usuario {usuario.nombre_completo} ha sido {estado_txt}.', 'warning')
         return redirect(url_for('admin_dashboard'))
@@ -624,31 +731,22 @@ def registrar_rutas(app):
         vendedor = Usuario.query.get_or_404(vendedor_id)
         vendedor.activo = True
         db.session.commit()
-        
+
         flash(f'✅ El vendedor {vendedor.nombre_completo} ha sido reactivado y ya puede ingresar a emitir pases.', 'success')
         return redirect(url_for('admin_dashboard'))
-
-
-  
-
-    def archivo_permitido(filename):
-        return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
 
     # --- 1. VISTA DE REGISTRO PÚBLICO DE SOCIO ---
     @app.route('/fidelizacion/registro', methods=['GET', 'POST'])
     def registro_fidelizacion():
         if request.method == 'POST':
-            # Sanitización y estandarización de strings en el servidor
-            nombre = request.form.get('nombre_completo', '').strip().upper()  # SIEMPRE MAYÚSCULAS
-            dni = request.form.get('dni', '').strip()                        # SOLO NÚMEROS
-            email = request.form.get('email', '').strip().lower()             # SIEMPRE MINÚSCULAS
+            nombre = request.form.get('nombre_completo', '').strip().upper()
+            dni = request.form.get('dni', '').strip()
+            email = request.form.get('email', '').strip().lower()
             telefono = request.form.get('telefono_whatsapp', '').strip()
             fecha_nac_str = request.form.get('fecha_nacimiento', '').strip()
             foto_base64 = request.form.get('foto_selfie_data', '')
-            acepto_terms = request.form.get('acepto_terminos') == 'on'         # Checkbox booleano
+            acepto_terms = request.form.get('acepto_terminos') == 'on'
 
-            # Validaciones
             if not acepto_terms:
                 flash('Debes aceptar los términos y condiciones para ser socio.', 'danger')
                 return redirect(url_for('registro_fidelizacion'))
@@ -657,26 +755,21 @@ def registrar_rutas(app):
                 flash('Por favor completa todos los campos obligatorios.', 'danger')
                 return redirect(url_for('registro_fidelizacion'))
 
-            # Limpiar DNI eliminando puntos o espacios accidentales
             dni = ''.join(filter(str.isdigit, dni))
 
-            # Verificar si ya existe DNI o Email en la base de datos
             existente = Cliente.query.filter((Cliente.dni == dni) | (Cliente.email == email)).first()
             if existente:
                 flash('Ya existe un socio registrado con ese DNI o correo electrónico.', 'warning')
                 return redirect(url_for('ver_tarjeta_fidelizacion', dni=existente.dni))
 
-            # Convertir fecha de nacimiento
             try:
                 fecha_nac = datetime.strptime(fecha_nac_str, '%Y-%m-%d').date()
             except ValueError:
                 flash('Formato de fecha inválido.', 'danger')
                 return redirect(url_for('registro_fidelizacion'))
 
-            # Procesar foto selfie Base64
             filename = None
             if foto_base64 and ',' in foto_base64:
-                import base64
                 os.makedirs(UPLOAD_FOLDER_SELFIES, exist_ok=True)
                 header, encoded = foto_base64.split(',', 1)
                 file_data = base64.b64decode(encoded)
@@ -717,19 +810,21 @@ def registrar_rutas(app):
 
         return render_template('fidelizacion/registro.html')
 
-
     # --- 2. PASAPORTE / TARJETA DIGITAL VIP ---
     @app.route('/fidelizacion/tarjeta/<dni>')
     def ver_tarjeta_fidelizacion(dni):
         cliente = Cliente.query.filter_by(dni=dni).first_or_404()
         evento_actual = Evento.query.filter_by(es_evento_actual=True).first()
-        
-        # Calcular si este mes o semana es su cumpleaños
+
         hoy = datetime.now().date()
         es_mes_cumple = (cliente.fecha_nacimiento.month == hoy.month)
 
-        return render_template('fidelizacion/tarjeta.html', cliente=cliente, evento_actual=evento_actual, es_mes_cumple=es_mes_cumple)
-
+        return render_template(
+            'fidelizacion/tarjeta.html',
+            cliente=cliente,
+            evento_actual=evento_actual,
+            es_mes_cumple=es_mes_cumple
+        )
 
     # --- 3. CARGA DE LISTA DE CUMPLEAÑOS (AUTOGESTIÓN) ---
     @app.route('/fidelizacion/cumpleanos/invitados', methods=['POST'])
@@ -741,7 +836,6 @@ def registrar_rutas(app):
 
         cliente = Cliente.query.get_or_404(cliente_id)
 
-        # Guardar invitados
         for i in range(len(nombres)):
             nom = nombres[i].strip()
             documento = dnis[i].strip()
@@ -758,57 +852,153 @@ def registrar_rutas(app):
         flash('¡Lista de invitados cargada correctamente!', 'success')
         return redirect(url_for('ver_tarjeta_fidelizacion', dni=cliente.dni))
 
-# ----------------------------- ENVIO DE MENSAJE DE BIENVENIDA ---------------------------------
+    # --------------------------- RUTA PARA CUMPLEAÑEROS -------------------------------------------
+    @app.route('/admin/cumpleanos', methods=['GET', 'POST'])
+    @login_required(roles=['admin'])
+    def admin_cumpleanos():
+        eventos = Evento.query.filter_by(estado='activo').order_by(Evento.id.desc()).all()
+        if not eventos:
+            eventos = Evento.query.order_by(Evento.id.desc()).all()
+        configs = CumpleanosConfig.query.order_by(CumpleanosConfig.id.desc()).all()
 
-def enviar_correo_bienvenida_async(app, cliente_id):
-    """Envía el correo de bienvenida en segundo plano dentro del contexto de Flask."""
-    with app.app_context():
-        cliente = Cliente.query.get(cliente_id)
-        if not cliente:
-            return
-        
-        try:
-            # Enlace absoluto al pasaporte VIP del cliente
-            url_tarjeta = f"https://ananaclub.online/fidelizacion/tarjeta/{cliente.dni}"
+        if request.method == 'POST':
+            evento_id = int(request.form['evento_id'])
+            fecha_inicio = datetime.strptime(request.form['fecha_inicio_cumple'], '%Y-%m-%d').date()
+            fecha_fin = datetime.strptime(request.form['fecha_fin_cumple'], '%Y-%m-%d').date()
+            limite_amigos = int(request.form['limite_amigos'])
+            vence_el = datetime.strptime(request.form['vence_el'], '%Y-%m-%dT%H:%M')
 
-            asunto = "🍸 ¡Bienvenido a ANANA CLUB! Tu Tarjeta VIP ya está lista"
-            
-            cuerpo_html = f"""
-            <div style="background-color: #08080c; color: #ffffff; padding: 30px; font-family: 'Montserrat', Arial, sans-serif; border-radius: 12px; max-width: 600px; margin: auto;">
-                <div style="text-align: center; margin-bottom: 20px;">
-                    <h2 style="color: #d4af37; margin: 0; font-size: 28px;">ANANA CLUB</h2>
-                    <p style="font-size: 14px; color: #b0b0b0; margin-top: 5px;">Membresía VIP & Pasaporte Digital</p>
-                </div>
-                
-                <p>Hola <strong style="color: #d4af37;">{cliente.nombre_completo}</strong>,</p>
-                <p>¡Gracias por sumarte! Tu registro en <strong>ANANA CLUB</strong> se ha completado con éxito.</p>
-                
-                <div style="background: #12121a; border: 1px solid #d4af37; padding: 20px; border-radius: 10px; text-align: center; margin: 25px 0;">
-                    <p style="margin: 0 0 5px 0; font-size: 12px; color: #d4af37; text-transform: uppercase; font-weight: bold;">Código de Socio:</p>
-                    <h3 style="margin: 0; color: #ffffff; font-family: monospace; font-size: 22px;">{cliente.codigo_membresia}</h3>
-                </div>
-                
-                <p>Accede a tu pasaporte digital para consultar tu QR de acceso, puntos acumulados y consumiciones de bienvenida:</p>
-                
-                <div style="text-align: center; margin: 30px 0;">
-                    <a href="{url_tarjeta}" style="background: linear-gradient(45deg, #d4af37, #f9e076); color: #000000; padding: 14px 28px; text-decoration: none; font-weight: bold; border-radius: 50px; display: inline-block; text-transform: uppercase; font-size: 13px; letter-spacing: 1px;">VER MI TARJETA VIP</a>
-                </div>
-                
-                <hr style="border: 0; border-top: 1px solid #222; margin: 30px 0;">
-                <p style="font-size: 11px; color: #666666; text-align: center; margin: 0;">
-                    ANANA CLUB — Sistema de Fidelización.<br>Si no solicitaste este alta, puedes ignorar este mensaje.
-                </p>
-            </div>
-            """
+            nueva_cfg = CumpleanosConfig(
+                evento_id=evento_id,
+                fecha_inicio_cumple=fecha_inicio,
+                fecha_fin_cumple=fecha_fin,
+                limite_amigos=limite_amigos,
+                vence_el=vence_el,
+                activo=True
+            )
+            db.session.add(nueva_cfg)
+            db.session.commit()
+            flash('Configuración de cumpleaños guardada correctamente.', 'success')
+            return redirect(url_for('admin_cumpleanos'))
 
-            msg = Message(asunto, recipients=[cliente.email], html=cuerpo_html)
-            mail.send(msg)
-            print(f"[OK] Correo de bienvenida enviado a {cliente.email}")
-        except Exception as e:
-            print(f"[ERROR] Falló el envío de correo a {cliente.email}: {e}")
+        return render_template('admin_cumpleanos.html', eventos=eventos, configs=configs)
 
+    @app.route('/cumpleanos/<int:config_id>', methods=['GET', 'POST'])
+    def registro_cumpleanos(config_id):
+        config = CumpleanosConfig.query.get_or_404(config_id)
+        evento = Evento.query.get(config.evento_id)
+        ahora = ahora_argentina()
+        vencido = ahora > config.vence_el
 
-def disparar_correo_bienvenida(cliente_id):
-    """Obtiene la instancia actual de la app y lanza el hilo secundario."""
-    app = current_app._get_current_object()
-    threading.Thread(target=enviar_correo_bienvenida_async, args=(app, cliente_id)).start()
+        if request.method == 'POST' and not vencido and config.activo:
+            dni = ''.join(filter(str.isdigit, request.form.get('dni', '')))
+            nombre = request.form.get('nombre_completo', '').strip().upper()
+            fecha_nac_str = request.form.get('fecha_nacimiento', '')
+            telefono = request.form.get('telefono', '').strip()
+            email = request.form.get('email', '').strip().lower()
+
+            existente = CumpleanosRegistro.query.filter_by(config_id=config.id, dni=dni).first()
+            if existente:
+                return redirect(url_for('qr_cumpleanos', codigo_qr=existente.codigo_qr))
+
+            fecha_nac = datetime.strptime(fecha_nac_str, '%Y-%m-%d').date()
+            if not cumple_en_rango(fecha_nac, config.fecha_inicio_cumple, config.fecha_fin_cumple):
+                flash('Tu fecha de nacimiento no entra dentro del rango habilitado para este beneficio.', 'warning')
+                return redirect(url_for('registro_cumpleanos', config_id=config.id))
+
+            nombres_amigos = request.form.getlist('amigo_nombre[]')
+            dnis_amigos = request.form.getlist('amigo_dni[]')
+
+            registro = CumpleanosRegistro(
+                config_id=config.id,
+                evento_id=config.evento_id,
+                dni=dni,
+                nombre_completo=nombre,
+                fecha_nacimiento=fecha_nac,
+                telefono=telefono,
+                email=email,
+                codigo_qr=f"CUMP-{uuid.uuid4().hex[:10].upper()}"
+            )
+            db.session.add(registro)
+            db.session.flush()
+
+            cargados = 0
+            for n_amigo, d_amigo in zip(nombres_amigos, dnis_amigos):
+                n_clean = (n_amigo or '').strip().upper()
+                d_clean = ''.join(filter(str.isdigit, d_amigo or ''))
+                if n_clean and cargados < config.limite_amigos:
+                    db.session.add(CumpleanosAmigo(
+                        registro_id=registro.id,
+                        nombre_completo=n_clean,
+                        dni=d_clean or None
+                    ))
+                    cargados += 1
+
+            db.session.commit()
+            return redirect(url_for('qr_cumpleanos', codigo_qr=registro.codigo_qr))
+
+        return render_template('registro_cumpleanos.html', config=config, evento=evento, vencido=vencido)
+
+    @app.route('/cumpleanos/qr/<codigo_qr>')
+    def qr_cumpleanos(codigo_qr):
+        registro = CumpleanosRegistro.query.filter_by(codigo_qr=codigo_qr).first_or_404()
+        config = CumpleanosConfig.query.get_or_404(registro.config_id)
+        ahora = ahora_argentina()
+        qr_valido = config.activo and (ahora <= config.vence_el)
+
+        return render_template(
+            'qr_cumpleanos.html',
+            registro=registro,
+            config=config,
+            qr_valido=qr_valido,
+            vence_texto=config.vence_el.strftime('%d/%m/%Y a las %H:%M hs')
+        )
+
+    @app.route('/portero/cumpleanos', methods=['GET', 'POST'])
+    @login_required(roles=['admin', 'supervisor', 'portero'])
+    def portero_cumpleanos():
+        registro = None
+        config = None
+        qr_valido = False
+        codigo = (request.values.get('codigo_qr') or '').strip().upper()
+
+        if codigo:
+            registro = CumpleanosRegistro.query.filter_by(codigo_qr=codigo).first()
+            if not registro:
+                flash('Código QR de cumpleaños no encontrado.', 'danger')
+            else:
+                config = CumpleanosConfig.query.get(registro.config_id)
+                ahora = ahora_argentina()
+                qr_valido = bool(config and config.activo and (ahora <= config.vence_el))
+
+        if request.method == 'POST' and request.form.get('accion') == 'aprobar':
+            reg_id = int(request.form['registro_id'])
+            reg = CumpleanosRegistro.query.get_or_404(reg_id)
+            cfg = CumpleanosConfig.query.get_or_404(reg.config_id)
+            ahora = ahora_argentina()
+
+            if not cfg.activo or ahora > cfg.vence_el:
+                flash('Este QR de cumpleaños está vencido o inhabilitado.', 'danger')
+                return redirect(url_for('vista_escaneo'))
+
+            if request.form.get('ingresa_cumpleaniero') == '1' and not reg.cumpleaniero_ingreso:
+                reg.cumpleaniero_ingreso = True
+                reg.fecha_ingreso_cumpleaniero = ahora
+
+            ids_amigos_tildados = {int(x) for x in request.form.getlist('amigos_ids')}
+            for amigo in reg.amigos:
+                if amigo.id in ids_amigos_tildados and not amigo.ingresado:
+                    amigo.ingresado = True
+                    amigo.fecha_ingreso = ahora
+
+            db.session.commit()
+            flash(f'✅ Ingreso aprobado para {reg.nombre_completo} y amigos seleccionados.', 'success')
+            return redirect(url_for('vista_escaneo'))
+
+        return render_template(
+            'portero_cumpleanos.html',
+            registro=registro,
+            config=config,
+            qr_valido=qr_valido,
+            codigo=codigo
+        )
