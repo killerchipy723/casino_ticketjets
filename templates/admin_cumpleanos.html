@@ -12,7 +12,7 @@
     <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
       <div>
         <h2 class="mb-0 text-gold fw-bold">Gestión de Beneficio Cumpleaños</h2>
-        <small class="text-white-custom">Configurá rangos de cumpleaños, cupos de amigos y vencimientos (Hora Argentina)</small>
+        <small class="text-white">Configurá rangos de cumpleaños, cupos de amigos y vencimientos (Hora Argentina)</small>
       </div>
       <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-light btn-sm">
         ← Volver al Panel Admin
@@ -50,25 +50,25 @@
 
             <div class="row g-2 mb-3">
               <div class="col-6">
-                <label for="fecha_inicio_cumple" class="form-label">Cumplen Desde</label>
+                <label for="fecha_inicio_cumple" class="form-label text-white">Cumplen Desde</label>
                 <input type="date" class="form-control" id="fecha_inicio_cumple" name="fecha_inicio_cumple" required />
               </div>
               <div class="col-6">
-                <label for="fecha_fin_cumple" class="form-label">Cumplen Hasta</label>
+                <label for="fecha_fin_cumple" class="form-label text-white">Cumplen Hasta</label>
                 <input type="date" class="form-control" id="fecha_fin_cumple" name="fecha_fin_cumple" required />
               </div>
             </div>
 
             <div class="mb-3">
-              <label for="limite_amigos" class="form-label">Límite de Amigos Gratis</label>
+              <label for="limite_amigos" class="form-label text-white">Límite de Amigos Gratis</label>
               <input type="number" class="form-control" id="limite_amigos" name="limite_amigos" min="0" max="50" value="5" required />
-              <div class="form-text text-white-custom">Cantidad máxima de acompañantes que puede cargar el cumpleañero.</div>
+              <div class="form-text text-light">Cantidad máxima de acompañantes que puede cargar el cumpleañero.</div>
             </div>
 
             <div class="mb-4">
-              <label for="vence_el" class="form-label">Vence el (Fecha y Hora — Argentina)</label>
+              <label for="vence_el" class="form-label text-white">Vence el (Fecha y Hora — Argentina)</label>
               <input type="datetime-local" class="form-control" id="vence_el" name="vence_el" required />
-              <div class="form-text text-white-custom">Ej: si el evento es esta noche y vence a las 02:00 AM del domingo, cargá ese día y hora.</div>
+              <div class="form-text text-light">Ej: si el evento es esta noche y vence a las 02:00 AM del domingo, cargá ese día y hora.</div>
             </div>
 
             <button type="submit" class="btn btn-gold w-100 py-2">Guardar y Generar Link de Flyer</button>
@@ -105,17 +105,17 @@
                           {% endif %}
                         </div>
                       </td>
-                      <td class="small">
+                      <td class="small text-white">
                         {{ cfg.fecha_inicio_cumple.strftime('%d/%m') }} al {{ cfg.fecha_fin_cumple.strftime('%d/%m') }}
                       </td>
                       <td>
                         <span class="fw-bold text-gold">{{ cfg.limite_amigos }}</span>
                       </td>
-                      <td class="small">
+                      <td class="small text-white">
                         {{ cfg.vence_el.strftime('%d/%m/%Y %H:%M hs') }}
                       </td>
                       <td class="celda-link">
-                        <div class="link-flyer mb-1" id="link-{{ cfg.id }}">{{ url_flyer }}</div>
+                        <div class="link-flyer text-white mb-1" id="link-{{ cfg.id }}">{{ url_flyer }}</div>
                         <button type="button" class="btn btn-sm btn-outline-warning py-0 px-2 btn-copiar-link" data-target="link-{{ cfg.id }}">
                           Copiar Link
                         </button>
@@ -126,7 +126,7 @@
               </table>
             </div>
           {% else %}
-            <p class="text-white-custom mb-0">Todavía no hay configuraciones de cumpleaños cargadas.</p>
+            <p class="text-white mb-0">Todavía no hay configuraciones de cumpleaños cargadas.</p>
           {% endif %}
         </div>
       </div>

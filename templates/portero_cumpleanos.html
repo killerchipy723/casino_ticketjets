@@ -22,7 +22,7 @@
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
         {% for category, message in messages %}
-          <div class="alert alert-{{ 'warning' if category == 'warning' else ('danger' if category == 'danger' else 'success') }}">
+          <div class="alert alert-{{ 'warning' if category == 'warning' else ('danger' if category == 'danger' else 'success') }} text-dark">
             {{ message }}
           </div>
         {% endfor %}
@@ -73,7 +73,7 @@
         </div>
 
         {% if not qr_valido %}
-          <div class="alert alert-danger mb-0">
+          <div class="alert alert-danger text-dark mb-0">
             Este QR ya no es válido (venció o fue desactivado). No se puede aprobar el ingreso.
           </div>
         {% else %}
@@ -115,7 +115,7 @@
                              id="amigo_{{ amigo.id }}" name="amigos_ids" value="{{ amigo.id }}"
                              {% if amigo.ingresado %}checked disabled{% endif %} />
                       <label class="form-check-label text-dark" for="amigo_{{ amigo.id }}">
-                        <strong>{{ amigo.nombre_completo }}</strong>
+                        <strong class="text-dark">{{ amigo.nombre_completo }}</strong>
                         {% if amigo.dni %}<span class="text-dark small"> — DNI {{ amigo.dni }}</span>{% endif %}
                       </label>
                     </div>
