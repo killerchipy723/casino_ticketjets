@@ -14,6 +14,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const inputNombre = document.getElementById('nombre_completo');
   const inputFechaNac = document.getElementById('fecha_nacimiento');
+  const selDia = document.getElementById('nac_dia');
+  const selMes = document.getElementById('nac_mes');
+  const selAnio = document.getElementById('nac_anio');
   const avisoRango = document.getElementById('avisoRangoFecha');
   const bloqueAmigos = document.getElementById('bloqueAmigos');
   const listaAmigos = document.getElementById('listaAmigos');
@@ -119,13 +122,76 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  function poblarSelectoresFecha() {
+    if (!selDia || !selMes || !selAnio) return;
+
+    const anioActual = new Date().getFullYear();
+    const anioMax = anioActual - 14;
+    const anioMin = anioActual - 85;
+
+    for (let a = anioMax; a >= anioMin; a--) {
+      const opt = document.createElement('option');
+      opt.value = String(a);
+      opt.textContent = String(a);
+      selAnio.appendChild(opt);
+    }
+
+    for (let d = 1; d <= 31; d++) {
+      const val = String(d).padStart(2, '0');
+      const opt = document.createElement('option');
+      opt.value = val;
+      opt.textContent = String(d);
+      selDia.appendChild(opt);
+    }
+  }
+
+  function actualizarDiasDelMes() {
+    if (!selDia || !selMes || !selAnio) return;
+
+    const mes = parseInt(selMes.value || '0', 10);
+    const anio = parseInt(selAnio.value || '2000', 10);
+    const diaPrevio = selDia.value;
+    const maxDias = mes ? new Date(anio, mes, 0).getDate() : 31;
+
+    selDia.innerHTML = '<option value="" selected disabled>Día</option>';
+    for (let d = 1; d <= maxDias; d++) {
+      const val = String(d).padStart(2, '0');
+      const opt = document.createElement('option');
+      opt.value = val;
+      opt.textContent = String(d);
+      if (val === diaPrevio && d <= maxDias) {
+        opt.selected = true;
+      }
+      selDia.appendChild(opt);
+    }
+
+    sincronizarFechaOculta();
+  }
+
+  function sincronizarFechaOculta() {
+    if (!inputFechaNac) return;
+
+    if (selDia && selMes && selAnio && selDia.value && selMes.value && selAnio.value) {
+      inputFechaNac.value = `${selAnio.value}-${selMes.value}-${selDia.value}`;
+    } else if (selDia && selMes && selAnio) {
+      inputFechaNac.value = '';
+    }
+
+    validarCumple();
+  }
+
   if (inputNombre) {
     inputNombre.addEventListener('input', () => {
       inputNombre.value = inputNombre.value.toUpperCase();
     });
   }
 
-  if (inputFechaNac) {
+  if (selDia && selMes && selAnio) {
+    poblarSelectoresFecha();
+    selMes.addEventListener('change', actualizarDiasDelMes);
+    selAnio.addEventListener('change', actualizarDiasDelMes);
+    selDia.addEventListener('change', sincronizarFechaOculta);
+  } else if (inputFechaNac) {
     inputFechaNac.addEventListener('change', validarCumple);
   }
 
@@ -137,6 +203,13 @@ document.addEventListener('DOMContentLoaded', () => {
     formCumple.querySelectorAll('.uppercase-input').forEach((el) => {
       el.value = el.value.toUpperCase().trim();
     });
+
+    if (selDia && selMes && selAnio && (!selDia.value || !selMes.value || !selAnio.value)) {
+      e.preventDefault();
+      avisoRango.className = 'form-text text-danger mt-1';
+      avisoRango.innerText = '✗ Seleccioná día, mes y año de nacimiento.';
+      return;
+    }
 
     if (!estaEnRango(inputFechaNac.value)) {
       e.preventDefault();

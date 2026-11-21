@@ -112,8 +112,37 @@
                   <input type="text" inputmode="numeric" class="form-control" id="dni" name="dni" required />
                 </div>
                 <div class="col-md-6">
-                  <label for="fecha_nacimiento" class="form-label">Fecha de Nacimiento *</label>
-                  <input type="date" class="form-control" id="fecha_nacimiento" name="fecha_nacimiento" required />
+                  <label class="form-label">Fecha de Nacimiento *</label>
+                  <div class="row g-2">
+                    <div class="col-4">
+                      <select class="form-select" id="nac_dia" aria-label="Día de nacimiento">
+                        <option value="" selected disabled>Día</option>
+                      </select>
+                    </div>
+                    <div class="col-4">
+                      <select class="form-select" id="nac_mes" aria-label="Mes de nacimiento">
+                        <option value="" selected disabled>Mes</option>
+                        <option value="01">Ene</option>
+                        <option value="02">Feb</option>
+                        <option value="03">Mar</option>
+                        <option value="04">Abr</option>
+                        <option value="05">May</option>
+                        <option value="06">Jun</option>
+                        <option value="07">Jul</option>
+                        <option value="08">Ago</option>
+                        <option value="09">Sep</option>
+                        <option value="10">Oct</option>
+                        <option value="11">Nov</option>
+                        <option value="12">Dic</option>
+                      </select>
+                    </div>
+                    <div class="col-4">
+                      <select class="form-select" id="nac_anio" aria-label="Año de nacimiento">
+                        <option value="" selected disabled>Año</option>
+                      </select>
+                    </div>
+                  </div>
+                  <input type="hidden" id="fecha_nacimiento" name="fecha_nacimiento" />
                   <div id="avisoRangoFecha" class="form-text mt-1"></div>
                 </div>
                 <div class="col-md-6">

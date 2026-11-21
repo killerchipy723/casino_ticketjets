@@ -954,6 +954,91 @@ def registrar_rutas(app):
             vence_texto=config.vence_el.strftime('%d/%m/%Y a las %H:%M hs')
         )
 
+    @app.route('/cumpleanos/pdf/<codigo_qr>')
+    def descargar_pdf_cumpleanos(codigo_qr):
+        registro = CumpleanosRegistro.query.filter_by(codigo_qr=codigo_qr).first_or_404()
+        config = CumpleanosConfig.query.get_or_404(registro.config_id)
+
+        qr_img = qrcode.make(registro.codigo_qr)
+        qr_path = f"temp_cump_{codigo_qr}.png"
+        qr_img.save(qr_path)
+
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=letter,
+            rightMargin=40, leftMargin=40,
+            topMargin=40, bottomMargin=40
+        )
+
+        story = []
+        styles = getSampleStyleSheet()
+
+        estilo_titulo = ParagraphStyle(
+            'TituloCump', parent=styles['Normal'],
+            fontName='Helvetica-Bold', fontSize=18,
+            textColor=colors.HexColor('#D4AF37'), alignment=1, spaceAfter=8
+        )
+        estilo_sub = ParagraphStyle(
+            'SubCump', parent=styles['Normal'],
+            fontName='Helvetica', fontSize=10,
+            textColor=colors.HexColor('#666666'), alignment=1, spaceAfter=14
+        )
+        estilo_texto = ParagraphStyle(
+            'TextoCump', parent=styles['Normal'],
+            fontName='Helvetica', fontSize=11,
+            textColor=colors.HexColor('#222222'), alignment=1, spaceAfter=5
+        )
+        estilo_codigo = ParagraphStyle(
+            'CodigoCump', parent=styles['Normal'],
+            fontName='Helvetica-Bold', fontSize=14,
+            textColor=colors.HexColor('#B38728'), alignment=1, spaceAfter=10
+        )
+
+        story.append(Paragraph("ANANA CLUB — PASE CUMPLEAÑOS 🎂", estilo_titulo))
+        story.append(Paragraph("PRESENTÁ ESTE QR EN PUERTA JUNTO CON TU DNI", estilo_sub))
+        story.append(Image(qr_path, width=155, height=155))
+        story.append(Spacer(1, 14))
+
+        data_tabla = [
+            [Paragraph(f"<b>CUMPLEAÑERO:</b> {registro.nombre_completo}", estilo_texto)],
+            [Paragraph(f"<b>DNI:</b> {registro.dni}", estilo_texto)],
+            [Paragraph(f"<b>NACIMIENTO:</b> {registro.fecha_nacimiento.strftime('%d/%m/%Y')}", estilo_texto)],
+            [Paragraph(f"<b>VENCE:</b> {config.vence_el.strftime('%d/%m/%Y %H:%M hs')}", estilo_texto)],
+            [Paragraph(f"<b>CÓDIGO:</b> {registro.codigo_qr}", estilo_codigo)]
+        ]
+
+        tabla = Table(data_tabla, colWidths=[320])
+        tabla.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#FDFBF7')),
+            ('BOX', (0, 0), (-1, -1), 2, colors.HexColor('#D4AF37')),
+            ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#E5D8B0')),
+            ('TOPPADDING', (0, 0), (-1, -1), 8),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ]))
+        story.append(tabla)
+        story.append(Spacer(1, 14))
+
+        if registro.amigos:
+            story.append(Paragraph(f"<b>AMIGOS CARGADOS ({len(registro.amigos)}):</b>", estilo_texto))
+            for idx, amigo in enumerate(registro.amigos, start=1):
+                dni_txt = f" — DNI {amigo.dni}" if amigo.dni else ""
+                story.append(Paragraph(f"{idx}. {amigo.nombre_completo}{dni_txt}", estilo_texto))
+
+        doc.build(story)
+
+        if os.path.exists(qr_path):
+            os.remove(qr_path)
+
+        buffer.seek(0)
+        return send_file(
+            buffer,
+            as_attachment=True,
+            download_name=f"CUMPLE_{registro.codigo_qr}.pdf",
+            mimetype='application/pdf'
+        )
+
     @app.route('/portero/cumpleanos', methods=['GET', 'POST'])
     @login_required(roles=['admin', 'supervisor', 'portero'])
     def portero_cumpleanos():

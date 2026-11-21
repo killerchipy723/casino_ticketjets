@@ -1,0 +1,40 @@
+:root {
+  --bg-dark: #0e0d12;
+  --bg-card: #18161f;
+  --accent-gold: #e2b45d;
+  --accent-warm: #c86432;
+  --text-main: #f6f3ec;
+  --text-muted: #aba3b8;
+}
+
+body {
+  background: radial-gradient(circle at top, #241926 0%, var(--bg-dark) 65%);
+  color: var(--text-main);
+  min-height: 100vh;
+}
+
+.qr-card {
+  background-color: var(--bg-card);
+  border: 1px solid rgba(226, 180, 93, 0.3);
+  border-radius: 18px;
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.55);
+}
+
+.text-gold {
+  color: var(--accent-gold) !important;
+}
+
+.text-muted-custom {
+  color: var(--text-muted) !important;
+}
+
+.qr-box {
+  background: #ffffff;
+  padding: 16px;
+  border-radius: 14px;
+  display: inline-block;
+}
+
+.qr-box.vencido {
+  filter: grayscale(100%) opacity(0.35);
+}
