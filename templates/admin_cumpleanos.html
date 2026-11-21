@@ -14,7 +14,7 @@
     <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
       <div>
         <h1 class="h3 text-gold fw-bold mb-0">Panel Unificado de Cumpleaños</h1>
-        <small class="text-muted-custom">Configuración del beneficio, control de asistencia e inscriptos</small>
+        <small class="text-white">Configuración del beneficio, control de asistencia e inscriptos</small>
       </div>
       <div class="d-flex gap-2">
         <a href="{{ url_for('vista_escaneo') }}" class="btn btn-outline-warning btn-sm">
@@ -27,25 +27,25 @@
     <div class="row g-3 mb-4">
       <div class="col-6 col-md-3">
         <div class="card card-metric p-3">
-          <div class="small text-muted-custom text-uppercase">Cumpleañeros</div>
+          <div class="small text-white text-uppercase">Cumpleañeros</div>
           <div class="fs-3 fw-bold text-gold">{{ totales.total }}</div>
         </div>
       </div>
       <div class="col-6 col-md-3">
         <div class="card card-metric p-3">
-          <div class="small text-muted-custom text-uppercase">Ingresaron</div>
+          <div class="small text-white text-uppercase">Ingresaron</div>
           <div class="fs-3 fw-bold text-success">{{ totales.ingresaron }}</div>
         </div>
       </div>
       <div class="col-6 col-md-3">
         <div class="card card-metric p-3">
-          <div class="small text-muted-custom text-uppercase">Amigos Lista</div>
+          <div class="small text-white text-uppercase">Amigos Lista</div>
           <div class="fs-3 fw-bold text-info">{{ totales.amigos_total }}</div>
         </div>
       </div>
       <div class="col-6 col-md-3">
         <div class="card card-metric p-3">
-          <div class="small text-muted-custom text-uppercase">Amigos Adentro</div>
+          <div class="small text-white text-uppercase">Amigos Adentro</div>
           <div class="fs-3 fw-bold text-warning">{{ totales.amigos_ingresaron }}</div>
         </div>
       </div>
@@ -153,11 +153,11 @@
                 <tr>
                   <td class="ps-3">
                     <strong class="text-light d-block">{{ reg.nombre_completo }}</strong>
-                    {% if reg.telefono %}<small class="text-muted-custom">Tel: {{ reg.telefono }}</small>{% endif %}
+                    {% if reg.telefono %}<small class="text-white">Tel: {{ reg.telefono }}</small>{% endif %}
                   </td>
                   <td>
                     <div>DNI: {{ reg.dni }}</div>
-                    <small class="text-muted-custom">Nac: {{ reg.fecha_nacimiento.strftime('%d/%m/%Y') }}</small>
+                    <small class="text-white">Nac: {{ reg.fecha_nacimiento.strftime('%d/%m/%Y') }}</small>
                   </td>
                   <td>
                     <span class="badge bg-dark border border-warning text-gold font-monospace">{{ reg.codigo_qr }}</span>
@@ -204,7 +204,7 @@
                               <li class="list-group-item bg-dark text-light d-flex justify-content-between align-items-center border-secondary border-opacity-25">
                                 <div>
                                   <strong>{{ amigo.nombre_completo }}</strong>
-                                  {% if amigo.dni %}<span class="small text-muted-custom d-block">DNI: {{ amigo.dni }}</span>{% endif %}
+                                  {% if amigo.dni %}<span class="small text-white d-block">DNI: {{ amigo.dni }}</span>{% endif %}
                                 </div>
                                 {% if amigo.ingresado %}
                                   <span class="badge bg-success">Ingresó</span>
@@ -224,7 +224,7 @@
               {% endfor %}
             {% else %}
               <tr>
-                <td colspan="7" class="text-center py-4 text-muted-custom">
+                <td colspan="7" class="text-center py-4 text-white">
                   No hay cumpleañeros registrados con los filtros seleccionados.
                 </td>
               </tr>
