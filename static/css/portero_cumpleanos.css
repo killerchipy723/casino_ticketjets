@@ -1,89 +1,37 @@
-:root {
-  --bg-dark: #0e0d12;
-  --bg-card: #18161f;
-  --accent-gold: #e2b45d;
-  --accent-warm: #c86432;
-  --text-main: #f6f3ec;
-  --text-muted: #b8b0c4;
-}
-
-body {
-  background-color: var(--bg-dark);
-  color: var(--text-main);
-  min-height: 100vh;
+body,
+.card-portero,
+.amigo-item,
+.form-label,
+.form-check-label {
+  color: #111827 !important;
 }
 
 .card-portero {
-  background-color: var(--bg-card);
-  border: 1px solid rgba(226, 180, 93, 0.25);
-  border-radius: 16px;
+  background-color: #ffffff;
+  border: 1px solid #dee2e6;
+  border-radius: 12px;
 }
 
+.amigo-item {
+  background-color: #f8f9fa;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 10px 14px;
+}
+
+/* Dorado oscuro legible sobre fondo blanco */
 .text-gold {
-  color: var(--accent-gold) !important;
-}
-
-.text-muted-custom {
-  color: var(--text-muted) !important;
+  color: #9a6b00 !important;
 }
 
 .btn-aprobar {
-  background: linear-gradient(135deg, #28a745, #198754);
-  color: #fff;
+  background-color: #198754;
+  color: #ffffff;
   font-weight: 700;
   border: none;
 }
 
 .btn-aprobar:hover {
-  opacity: 0.92;
-  color: #fff;
-}
-
-.form-control {
-  background-color: #110f17;
-  border-color: rgba(255, 255, 255, 0.14);
-  color: var(--text-main);
-}
-
-.form-control:focus {
-  background-color: #110f17;
-  border-color: var(--accent-gold);
-  color: var(--text-main);
-  box-shadow: 0 0 0 0.2rem rgba(226, 180, 93, 0.2);
-}
-
-.amigo-item {
-  background-color: #121018;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 10px;
-  padding: 10px 14px;
-}
-
-/* Alto contraste para nombres y etiquetas en la lista */
-.amigo-item .form-check-label,
-.amigo-item .form-check-label strong,
-.nombre-amigo-texto {
-  color: #f6f3ec !important;
-  opacity: 1 !important;
-}
-
-.dni-amigo-texto {
-  color: #b8b0c4 !important;
-  opacity: 1 !important;
-}
-
-.amigo-item .form-check-input {
-  background-color: #1d1a26;
-  border: 1.5px solid #e2b45d;
-  cursor: pointer;
-}
-
-.amigo-item .form-check-input:checked {
-  background-color: #e2b45d;
-  border-color: #e2b45d;
-}
-
-.amigo-item .form-check-input:disabled {
-  opacity: 0.75;
-  cursor: not-allowed;
+  background-color: #157347;
+  color: #ffffff;
 }
