@@ -1,0 +1,84 @@
+body {
+    background-color: #08080c;
+    color: #ffffff;
+    font-family: 'Montserrat', sans-serif;
+}
+
+.card-casino {
+    background: #12121a;
+    border: 1px solid #d4af37;
+    border-radius: 12px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
+}
+
+.text-gold {
+    color: #d4af37 !important;
+}
+
+.btn-gold {
+    background: linear-gradient(45deg, #d4af37, #f9e076, #b38728);
+    color: #000000;
+    font-weight: 700;
+    border: none;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.btn-gold:hover,
+.btn-gold:focus {
+    background: #f9e076;
+    color: #000000;
+    box-shadow: 0 6px 18px rgba(212, 175, 55, 0.25);
+}
+
+.form-control::placeholder {
+    color: #c8c3d1;
+    opacity: 1;
+}
+
+.rrpp-logo {
+    max-height: 50px;
+    width: auto;
+    object-fit: contain;
+    filter: drop-shadow(0 0 8px rgba(212, 175, 55, 0.4));
+}
+
+.rrpp-header-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    width: auto;
+}
+
+.btn-logout {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #ff8a95;
+    background-color: rgba(220, 53, 69, 0.12);
+    border: 1px solid rgba(220, 53, 69, 0.45);
+    border-radius: 8px;
+    text-decoration: none;
+    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.btn-logout:hover,
+.btn-logout:focus {
+    color: #ffffff;
+    background-color: #dc3545;
+    border-color: #dc3545;
+}
+
+@media (max-width: 575.98px) {
+    .rrpp-header-actions {
+        width: 100%;
+    }
+
+    .btn-logout {
+        width: 100%;
+        padding: 0.65rem 1rem;
+    }
+}

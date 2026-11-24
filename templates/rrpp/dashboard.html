@@ -6,36 +6,30 @@
     <title>Panel RRPP - ANANA CLUB</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&display=swap" rel="stylesheet">
-    <style>
-        body { background-color: #08080c; color: #fff; font-family: 'Montserrat', sans-serif; }
-        .card-casino { background: #12121a; border: 1px solid #d4af37; border-radius: 12px; box-shadow: 0 0 20px rgba(0,0,0,0.8); }
-        .text-gold { color: #d4af37 !important; }
-        .btn-gold { background: linear-gradient(45deg, #d4af37, #f9e076, #b38728); color: #000; font-weight: bold; border: none; }
-        .btn-gold:hover { background: #f9e076; color: #000; }
-        .form-control::placeholder { color: #c8c3d1; opacity: 1; }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/rrpp_dashboard.css') }}">
 </head>
 <body>
 
 <div class="container py-4">
 
     <!-- BARRA SUPERIOR -->
-    <div class="d-flex flex-column flex-sm-row justify-content-between align-items-center gap-3 mb-4 card-casino p-3">
+    <header class="card-casino p-3 mb-4 d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3">
         <div class="d-flex align-items-center gap-3">
             <img src="{{ url_for('static', filename='images/anana_logo_transparente.png') }}"
                  alt="ANANA CLUB Logo"
-                 class="img-fluid"
-                 style="max-height: 50px; width: auto; object-fit: contain; filter: drop-shadow(0 0 8px rgba(212, 175, 55, 0.4));">
+                 class="img-fluid rrpp-logo">
             <div>
                 <h5 class="text-gold fw-bold mb-0">Usuario: {{ session.get('usuario_nombre') }}</h5>
                 <small class="text-white">Panel de Generación de Pases y Comisiones</small>
             </div>
         </div>
-        <div class="d-flex gap-2">
-           
-            <a href="/logout" class="btn btn-outline-danger btn-sm">Salir</a>
+
+        <div class="rrpp-header-actions">
+            <a href="{{ url_for('logout') }}" class="btn btn-logout">
+                Cerrar sesión
+            </a>
         </div>
-    </div>
+    </header>
 
     <!-- TARJETAS DE MÉTRICAS -->
     <div class="row g-3 mb-4">
@@ -109,7 +103,7 @@
                             {% endif %}
                         </td>
                         <td>
-                            <a href="/rrpp/ticket/pdf/{{ t.codigo_qr }}" class="btn btn-sm btn-outline-warning">📥 Descargar PDF</a>
+                            <a href="{{ url_for('descargar_pdf_rrpp', codigo=t.codigo_qr) }}" class="btn btn-sm btn-outline-warning">📥 Descargar PDF</a>
                         </td>
                     </tr>
                     {% else %}
@@ -189,58 +183,6 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script>
-    const btnGenerarPases = document.getElementById('btnGenerarPases');
-    const modalSinEventoEl = document.getElementById('modalSinEvento');
-    const modalPaseEl = document.getElementById('modalPase');
-
-    if (btnGenerarPases) {
-        btnGenerarPases.addEventListener('click', function () {
-            const hayEventoActivo = btnGenerarPases.dataset.hayEvento === '1';
-            const eventoVencido = btnGenerarPases.dataset.vencido === '1';
-
-            if (!hayEventoActivo || eventoVencido) {
-                if (modalSinEventoEl) {
-                    bootstrap.Modal.getOrCreateInstance(modalSinEventoEl).show();
-                }
-            } else if (modalPaseEl) {
-                bootstrap.Modal.getOrCreateInstance(modalPaseEl).show();
-            }
-        });
-    }
-
-    const formPase = document.getElementById('formGenerarPase');
-    if (formPase) {
-        formPase.addEventListener('submit', function (e) {
-            e.preventDefault();
-
-            const datos = {
-                nombre: document.getElementById('nombre').value,
-                dni: document.getElementById('dni').value,
-                whatsapp: document.getElementById('whatsapp').value,
-                cantidad: document.getElementById('cantidad').value
-            };
-
-            fetch('/rrpp/generar_pase', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(datos)
-            })
-            .then(function (res) { return res.json(); })
-            .then(function (data) {
-                if (data.success) {
-                    window.open(data.link_whatsapp, '_blank');
-                    location.reload();
-                } else {
-                    alert(data.error || 'Error al generar el pase.');
-                }
-            })
-            .catch(function (err) {
-                console.error(err);
-                alert('Error de conexión.');
-            });
-        });
-    }
-</script>
+<script src="{{ url_for('static', filename='js/rrpp_dashboard.js') }}"></script>
 </body>
 </html>
