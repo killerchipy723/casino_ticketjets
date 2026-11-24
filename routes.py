@@ -316,13 +316,18 @@ def registrar_rutas(app):
         usuario_id = session.get('usuario_id')
         evento_activo = Evento.query.filter_by(es_evento_actual=True, estado='activo').first()
 
+        evento_vencido = False
+        motivo_vencido = ""
+
         if evento_activo:
+            evento_vencido, motivo_vencido = evento_esta_vencido(evento_activo)
             tickets = TicketQR.query.filter_by(
                 vendedor_id=usuario_id,
                 evento_id=evento_activo.id
             ).order_by(TicketQR.fecha_creacion.desc()).all()
         else:
             tickets = []
+            motivo_vencido = "No hay ningún evento activo configurado."
 
         total_generados = len(tickets)
         total_canjeados = sum(1 for t in tickets if t.estado == 'canjeado')
@@ -332,11 +337,12 @@ def registrar_rutas(app):
             'rrpp/dashboard.html',
             tickets=tickets,
             evento_activo=evento_activo,
+            evento_vencido=evento_vencido,
+            motivo_vencido=motivo_vencido,
             total_generados=total_generados,
             total_canjeados=total_canjeados,
             total_parciales=total_parciales
         )
-
     @app.route('/rrpp/generar_pase', methods=['POST'])
     @login_required(roles=['rrpp', 'supervisor', 'admin'])
     def generar_pase():

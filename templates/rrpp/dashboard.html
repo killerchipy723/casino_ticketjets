@@ -12,18 +12,19 @@
         .text-gold { color: #d4af37 !important; }
         .btn-gold { background: linear-gradient(45deg, #d4af37, #f9e076, #b38728); color: #000; font-weight: bold; border: none; }
         .btn-gold:hover { background: #f9e076; }
+        .form-control::placeholder { color: #c8c3d1; opacity: 1; }
     </style>
 </head>
 <body>
 
 <div class="container py-4">
-    
+
     <!-- BARRA SUPERIOR -->
     <div class="d-flex flex-column flex-sm-row justify-content-between align-items-center gap-3 mb-4 card-casino p-3">
         <div class="d-flex align-items-center gap-3">
-            <img src="{{ url_for('static', filename='images/anana_logo_transparente.png') }}" 
-                 alt="ANANA CLUB Logo" 
-                 class="img-fluid" 
+            <img src="{{ url_for('static', filename='images/anana_logo_transparente.png') }}"
+                 alt="ANANA CLUB Logo"
+                 class="img-fluid"
                  style="max-height: 50px; width: auto; object-fit: contain; filter: drop-shadow(0 0 8px rgba(212, 175, 55, 0.4));">
             <div>
                 <h5 class="text-gold fw-bold mb-0">Usuario: {{ session.get('usuario_nombre') }}</h5>
@@ -58,11 +59,23 @@
         </div>
     </div>
 
-    <!-- BOTÓN PARA ABRIR MODAL DE NUEVO PASE -->
+    <!-- BOTÓN PARA ABRIR MODAL DE NUEVO PASE O AVISO DE VENCIMIENTO -->
     <div class="mb-4">
-        <button class="btn btn-gold btn-lg w-100 py-3 fw-bold shadow" data-bs-toggle="modal" data-bs-target="#modalPase">
-            ➕ GENERAR NUEVO PASE VIP (CON QR)
-        </button>
+        {% if evento_vencido %}
+            <button type="button"
+                    class="btn btn-secondary btn-lg w-100 py-3 fw-bold shadow"
+                    data-bs-toggle="modal"
+                    data-bs-target="#modalEventoVencido">
+                ⛔ GENERAR NUEVO PASE VIP (EVENTO VENCIDO)
+            </button>
+        {% else %}
+            <button type="button"
+                    class="btn btn-gold btn-lg w-100 py-3 fw-bold shadow"
+                    data-bs-toggle="modal"
+                    data-bs-target="#modalPase">
+                ➕ GENERAR NUEVO PASE VIP (CON QR)
+            </button>
+        {% endif %}
     </div>
 
     <!-- TABLA DE TICKETS GENERADOS POR EL VENDEDOR -->
@@ -116,6 +129,27 @@
     </div>
 </div>
 
+{% if evento_vencido %}
+<!-- MODAL AVISO EVENTO VENCIDO -->
+<div class="modal fade" id="modalEventoVencido" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark text-white border-danger">
+            <div class="modal-header border-danger border-opacity-50">
+                <h5 class="modal-title text-danger fw-bold">⚠️ Generación de Tickets Bloqueada</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center py-4">
+                <p class="mb-0 fs-6">
+                    {{ motivo_vencido if motivo_vencido else "El evento ya venció y no permite generar nuevos tickets ni códigos QR." }}
+                </p>
+            </div>
+            <div class="modal-footer border-danger border-opacity-50">
+                <button type="button" class="btn btn-outline-light w-100" data-bs-dismiss="modal">Entendido</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% else %}
 <!-- MODAL GENERAR PASE -->
 <div class="modal fade" id="modalPase" tabindex="-1">
     <div class="modal-dialog">
@@ -150,38 +184,42 @@
         </div>
     </div>
 </div>
+{% endif %}
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-    document.getElementById('formGenerarPase').addEventListener('submit', function(e) {
-        e.preventDefault();
-        
-        const datos = {
-            nombre: document.getElementById('nombre').value,
-            dni: document.getElementById('dni').value,
-            whatsapp: document.getElementById('whatsapp').value,
-            cantidad: document.getElementById('cantidad').value
-        };
+    const formPase = document.getElementById('formGenerarPase');
+    if (formPase) {
+        formPase.addEventListener('submit', function(e) {
+            e.preventDefault();
 
-        fetch('/rrpp/generar_pase', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(datos)
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                window.open(data.link_whatsapp, '_blank');
-                location.reload();
-            } else {
-                alert(data.error || 'Error al generar el pase.');
-            }
-        })
-        .catch(err => {
-            console.error(err);
-            alert('Error de conexión.');
+            const datos = {
+                nombre: document.getElementById('nombre').value,
+                dni: document.getElementById('dni').value,
+                whatsapp: document.getElementById('whatsapp').value,
+                cantidad: document.getElementById('cantidad').value
+            };
+
+            fetch('/rrpp/generar_pase', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(datos)
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    window.open(data.link_whatsapp, '_blank');
+                    location.reload();
+                } else {
+                    alert(data.error || 'Error al generar el pase.');
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                alert('Error de conexión.');
+            });
         });
-    });
+    }
 </script>
 </body>
 </html>
