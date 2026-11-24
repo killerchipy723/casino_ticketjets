@@ -21,7 +21,7 @@ import os
 import threading
 from flask_mail import Message
 from zoneinfo import ZoneInfo
-from datetime import datetime, date
+from datetime import datetime, date,time
 import calendar
 
 UPLOAD_FOLDER_SELFIES = os.path.join('static', 'uploads', 'selfies')
@@ -33,6 +33,46 @@ TZ_AR = ZoneInfo("America/Argentina/Buenos_Aires")
 def ahora_argentina():
     """Devuelve datetime naive en hora real de Argentina para comparar con BD."""
     return datetime.now(TZ_AR).replace(tzinfo=None)
+
+#----------------------- funcion de verificacion si el evento esta vencido ---------------------------------------
+def evento_esta_vencido(evento):
+    """Verifica si un evento ya superó su fecha/hora de cierre usando la hora de Argentina."""
+    if not evento:
+        return True, "No se encontró el evento."
+
+    ahora = ahora_argentina()
+
+    # 1. Comprobación si el modelo tiene datetime de vencimiento (ej: vence_el / fecha_fin)
+    for campo in ("vence_el", "fecha_fin", "cierre_el"):
+        dt_val = getattr(evento, campo, None)
+        if isinstance(dt_val, datetime):
+            if ahora > dt_val:
+                return True, f"El evento '{evento.nombre}' venció el {dt_val.strftime('%d/%m/%Y %H:%M')}."
+            return False, ""
+        elif isinstance(dt_val, date):
+            cierre_dia = datetime.combine(dt_val, time(23, 59, 59))
+            if ahora > cierre_dia:
+                return True, f"El evento '{evento.nombre}' venció el {dt_val.strftime('%d/%m/%Y')}."
+            return False, ""
+
+    # 2. Comprobación si tiene fecha_evento (date) y opcionalmente hora_fin / hora_cierre
+    fecha_ev = getattr(evento, "fecha_evento", None) or getattr(evento, "fecha", None)
+    if fecha_ev:
+        if isinstance(fecha_ev, datetime):
+            fecha_ev_date = fecha_ev.date()
+        else:
+            fecha_ev_date = fecha_ev
+
+        hora_cierre = getattr(evento, "hora_fin", None) or getattr(evento, "hora_cierre", None)
+        if isinstance(hora_cierre, time):
+            cierre_dt = datetime.combine(fecha_ev_date, hora_cierre)
+        else:
+            cierre_dt = datetime.combine(fecha_ev_date, time(23, 59, 59))
+
+        if ahora > cierre_dt:
+            return True, f"El evento '{evento.nombre}' ya finalizó ({cierre_dt.strftime('%d/%m/%Y %H:%M')})."
+
+    return False, ""
 
 
 def cumple_en_rango(fecha_nac, fecha_inicio, fecha_fin):
@@ -302,7 +342,19 @@ def registrar_rutas(app):
     def generar_pase():
         evento_activo = Evento.query.filter_by(es_evento_actual=True, estado='activo').first()
         if not evento_activo:
-            return jsonify({"success": False, "error": "No hay ningún evento activo configurado."}), 400
+            return jsonify({
+                "success": False,
+                "evento_vencido": False,
+                "error": "No hay ningún evento activo configurado."
+            }), 400
+
+        vencido, motivo = evento_esta_vencido(evento_activo)
+        if vencido:
+            return jsonify({
+                "success": False,
+                "evento_vencido": True,
+                "error": motivo
+            }), 400
 
         datos_json = request.get_json(force=True, silent=True) or request.form
 
