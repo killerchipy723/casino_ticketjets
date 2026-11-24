@@ -11,7 +11,7 @@
         .card-casino { background: #12121a; border: 1px solid #d4af37; border-radius: 12px; box-shadow: 0 0 20px rgba(0,0,0,0.8); }
         .text-gold { color: #d4af37 !important; }
         .btn-gold { background: linear-gradient(45deg, #d4af37, #f9e076, #b38728); color: #000; font-weight: bold; border: none; }
-        .btn-gold:hover { background: #f9e076; }
+        .btn-gold:hover { background: #f9e076; color: #000; }
         .form-control::placeholder { color: #c8c3d1; opacity: 1; }
     </style>
 </head>
@@ -59,23 +59,13 @@
         </div>
     </div>
 
-    <!-- BOTÓN PARA ABRIR MODAL DE NUEVO PASE O AVISO DE VENCIMIENTO -->
+    <!-- BOTÓN GENERAR PASES -->
     <div class="mb-4">
-        {% if evento_vencido %}
-            <button type="button"
-                    class="btn btn-secondary btn-lg w-100 py-3 fw-bold shadow"
-                    data-bs-toggle="modal"
-                    data-bs-target="#modalEventoVencido">
-                ⛔ GENERAR NUEVO PASE VIP (EVENTO VENCIDO)
-            </button>
-        {% else %}
-            <button type="button"
-                    class="btn btn-gold btn-lg w-100 py-3 fw-bold shadow"
-                    data-bs-toggle="modal"
-                    data-bs-target="#modalPase">
-                ➕ GENERAR NUEVO PASE VIP (CON QR)
-            </button>
-        {% endif %}
+        <button type="button"
+                id="btnGenerarPases"
+                class="btn btn-gold btn-lg w-100 py-3 fw-bold shadow">
+            Generar Pases
+        </button>
     </div>
 
     <!-- TABLA DE TICKETS GENERADOS POR EL VENDEDOR -->
@@ -129,27 +119,6 @@
     </div>
 </div>
 
-{% if evento_vencido %}
-<!-- MODAL AVISO EVENTO VENCIDO -->
-<div class="modal fade" id="modalEventoVencido" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content bg-dark text-white border-danger">
-            <div class="modal-header border-danger border-opacity-50">
-                <h5 class="modal-title text-danger fw-bold">⚠️ Generación de Tickets Bloqueada</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body text-center py-4">
-                <p class="mb-0 fs-6">
-                    {{ motivo_vencido if motivo_vencido else "El evento ya venció y no permite generar nuevos tickets ni códigos QR." }}
-                </p>
-            </div>
-            <div class="modal-footer border-danger border-opacity-50">
-                <button type="button" class="btn btn-outline-light w-100" data-bs-dismiss="modal">Entendido</button>
-            </div>
-        </div>
-    </div>
-</div>
-{% else %}
 <!-- MODAL GENERAR PASE -->
 <div class="modal fade" id="modalPase" tabindex="-1">
     <div class="modal-dialog">
@@ -184,13 +153,65 @@
         </div>
     </div>
 </div>
-{% endif %}
+
+<!-- MODAL SIN EVENTOS ACTIVOS / EVENTO FINALIZADO -->
+<div class="modal fade" id="modalSinEvento" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark text-white border-danger">
+            <div class="modal-header border-danger border-opacity-50">
+                <h5 class="modal-title text-danger fw-bold">No hay eventos activos</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center py-4">
+                <p class="mb-2 fs-6">No hay eventos activos en este momento para generar pases.</p>
+                {% if evento_activo %}
+                    <p class="mb-0 text-warning small">
+                        El evento anterior ({{ evento_activo.nombre }}) finalizó el día
+                        {% if evento_activo.fecha_fin %}
+                            {{ evento_activo.fecha_fin.strftime('%d/%m/%Y a las %H:%M') }}.
+                        {% elif evento_activo.fecha_evento %}
+                            {{ evento_activo.fecha_evento.strftime('%d/%m/%Y') }}.
+                        {% else %}
+                            {{ motivo_vencido if motivo_vencido else "indicado en el sistema." }}
+                        {% endif %}
+                    </p>
+                {% elif motivo_vencido %}
+                    <p class="mb-0 text-warning small">{{ motivo_vencido }}</p>
+                {% endif %}
+            </div>
+            <div class="modal-footer border-danger border-opacity-50">
+                <button type="button" class="btn btn-outline-light w-100" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+    const btnGenerarPases = document.getElementById('btnGenerarPases');
+    const modalSinEventoEl = document.getElementById('modalSinEvento');
+    const modalPaseEl = document.getElementById('modalPase');
+
+    if (btnGenerarPases) {
+        btnGenerarPases.addEventListener('click', function () {
+            const hayEventoActivo = btnGenerarPases.dataset.hayEvento === '1';
+            const eventoVencido = btnGenerarPases.dataset.vencido === '1';
+
+            if (!hayEventoActivo || eventoVencido) {
+                if (modalSinEventoEl) {
+                    bootstrap.Modal.getOrCreateInstance(modalSinEventoEl).show();
+                }
+            } else if (modalPaseEl) {
+                bootstrap.Modal.getOrCreateInstance(modalPaseEl).show();
+            }
+        });
+    }
+
     const formPase = document.getElementById('formGenerarPase');
     if (formPase) {
-        formPase.addEventListener('submit', function(e) {
+        formPase.addEventListener('submit', function (e) {
             e.preventDefault();
 
             const datos = {
@@ -205,8 +226,8 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(datos)
             })
-            .then(res => res.json())
-            .then(data => {
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
                 if (data.success) {
                     window.open(data.link_whatsapp, '_blank');
                     location.reload();
@@ -214,12 +235,13 @@
                     alert(data.error || 'Error al generar el pase.');
                 }
             })
-            .catch(err => {
+            .catch(function (err) {
                 console.error(err);
                 alert('Error de conexión.');
             });
         });
     }
+
 </script>
 </body>
 </html>
