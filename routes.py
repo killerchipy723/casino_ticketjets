@@ -913,7 +913,7 @@ def registrar_rutas(app):
         return redirect(url_for('ver_tarjeta_fidelizacion', dni=cliente.dni))
 
     # --------------------------- RUTA PARA CUMPLEAÑEROS -------------------------------------------
-    @app.route('/admin/cumpleanos', methods=['GET', 'POST'])
+    @app.route('/admin/cumpleanos', methods=['GET', 'POST'])   
     def admin_cumpleanos():
         # 1. Manejo del formulario de Configuración
         if request.method == 'POST':
@@ -923,6 +923,9 @@ def registrar_rutas(app):
             config.titulo = request.form.get('titulo', 'Beneficio Cumpleaños')
             config.limite_amigos = int(request.form.get('limite_amigos', 5))
             config.activo = 'activo' in request.form
+
+            evento_id_str = (request.form.get('evento_id') or '').strip()
+            config.evento_id = int(evento_id_str) if evento_id_str.isdigit() else None
 
             # Rango de fechas habilitadas (Mes/Día)
             ini_m = int(request.form.get('ini_mes', 1))
@@ -944,10 +947,13 @@ def registrar_rutas(app):
             flash('Configuración de cumpleaños actualizada correctamente.', 'success')
             return redirect(url_for('admin_cumpleanos'))
 
-        # 2. Cargar Configuración Actual
+        # 2. Cargar Configuración Actual y Eventos
+        eventos = Evento.query.order_by(Evento.id.desc()).all()
         config = CumpleanosConfig.query.order_by(CumpleanosConfig.id.desc()).first()
         if not config:
+            evento_actual = Evento.query.filter_by(es_evento_actual=True, estado='activo').first()
             config = CumpleanosConfig(
+                evento_id=evento_actual.id if evento_actual else None,
                 titulo="Beneficio Cumpleaños ANANA",
                 limite_amigos=5,
                 fecha_inicio_cumple=date(2024, 1, 1),
@@ -1025,6 +1031,7 @@ def registrar_rutas(app):
         return render_template(
             'admin_cumpleanos.html',
             config=config,
+            eventos=eventos,
             registros=registros,
             totales=totales,
             q=q,
