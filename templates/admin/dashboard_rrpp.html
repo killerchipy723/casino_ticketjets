@@ -12,6 +12,7 @@
         .text-gold { color: #d4af37 !important; }
         .btn-gold { background: linear-gradient(45deg, #d4af37, #f9e076, #b38728); color: #000; font-weight: bold; border: none; }
         .btn-gold:hover { background: #f9e076; }
+        .cursor-pointer { cursor: pointer; }
     </style>
 </head>
 <body>
@@ -78,69 +79,79 @@
         </div>
     </div>
 
-    <!-- TABLA DE PERSONAL REGISTRADO -->
+    <!-- TABLA DE PERSONAL REGISTRADO (COLAPSABLE POR DEFECTO) -->
     <div class="card card-casino p-3 mb-4">
-        <h5 class="text-gold mb-3">👥 Personal Registrado (RRPP, Porteros, Supervisores)</h5>
-        <div class="table-responsive">
-            <table class="table table-dark table-striped table-sm align-middle mb-0">
-                <thead>
-                    <tr>
-                        <th>Nombre Completo</th>
-                        <th>Usuario</th>
-                        <th>Rol</th>
-                        <th>Estado</th>
-                        <th>Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for v in vendedores %}
-                    <tr>
-                        <td><strong>{{ v.nombre_completo }}</strong></td>
-                        <td><code>{{ v.username }}</code></td>
-                        <td>
-                            <span class="badge {% if v.rol == 'admin' %}bg-danger{% elif v.rol == 'supervisor' %}bg-warning text-dark{% elif v.rol == 'portero' %}bg-success{% else %}bg-info text-dark{% endif %}">
-                                {{ v.rol | upper }}
-                            </span>
-                        </td>
-                        <td>
-                            <span class="badge {% if v.activo %}bg-success{% else %}bg-secondary{% endif %}">
-                                {{ 'Activo' if v.activo else 'Inactivo' }}
-                            </span>
-                        </td>
-                        <td>
-                            <div class="d-flex align-items-center gap-1 flex-wrap">
-                                <button class="btn btn-warning btn-sm py-0 px-2" data-bs-toggle="modal" data-bs-target="#modalEditarUsuario{{ v.id }}" title="Editar Usuario">✏️</button>
-                                
-                                {% if v.activo %}
-                                    <!-- SI ESTÁ ACTIVO: INHABILITAR VENDEDOR Y ANULAR SUS PASES -->
-                                    <form action="{{ url_for('anular_pases_vendedor', vendedor_id=v.id) }}" method="POST" class="d-inline" onsubmit="return confirm('¿Estás seguro de inhabilitar a este vendedor y anular TODOS sus pases del evento actual?');">
-                                        <button type="submit" class="btn btn-outline-danger btn-sm py-0 px-2" title="Inhabilitar y Anular Pases">🚫 Bloquear</button>
-                                    </form>
-                                {% else %}
-                                    <!-- SI ESTÁ INHABILITADO: REACTIVAR CUENTA -->
-                                    <form action="{{ url_for('reactivar_vendedor', vendedor_id=v.id) }}" method="POST" class="d-inline">
-                                        <button type="submit" class="btn btn-outline-success btn-sm py-0 px-2" title="Reactivar Vendedor">✅ Reactivar</button>
-                                    </form>
-                                {% endif %}
+        <div class="d-flex justify-content-between align-items-center cursor-pointer" data-bs-toggle="collapse" data-bs-target="#collapsePersonal" aria-expanded="false" aria-controls="collapsePersonal">
+            <h5 class="text-gold mb-0">👥 Personal Registrado (RRPP, Porteros, Supervisores)</h5>
+            <button type="button" class="btn btn-sm btn-outline-warning fw-bold">Desplegar / Ocultar</button>
+        </div>
 
-                                {% if v.id != session.get('usuario_id') %}
-                                    <a href="/admin/usuario/eliminar/{{ v.id }}" class="btn btn-danger btn-sm py-0 px-2" onclick="return confirm('¿Seguro que deseas eliminar a este usuario?')" title="Eliminar Usuario">❌</a>
-                                {% endif %}
-                            </div>
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr><td colspan="5" class="text-center text-white py-3">No hay usuarios registrados.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <div class="collapse mt-3" id="collapsePersonal">
+            <div class="table-responsive">
+                <table class="table table-dark table-striped table-sm align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Nombre Completo</th>
+                            <th>Usuario</th>
+                            <th>Rol</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for v in vendedores %}
+                        <tr>
+                            <td><strong>{{ v.nombre_completo }}</strong></td>
+                            <td><code>{{ v.username }}</code></td>
+                            <td>
+                                <span class="badge {% if v.rol == 'admin' %}bg-danger{% elif v.rol == 'supervisor' %}bg-warning text-dark{% elif v.rol == 'portero' %}bg-success{% else %}bg-info text-dark{% endif %}">
+                                    {{ v.rol | upper }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge {% if v.activo %}bg-success{% else %}bg-secondary{% endif %}">
+                                    {{ 'Activo' if v.activo else 'Inactivo' }}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center gap-1 flex-wrap">
+                                    <button type="button" class="btn btn-warning btn-sm py-0 px-2" data-bs-toggle="modal" data-bs-target="#modalEditarUsuario{{ v.id }}" title="Editar Usuario">✏️</button>
+                                    
+                                    {% if v.activo %}
+                                        <!-- SI ESTÁ ACTIVO: INHABILITAR VENDEDOR Y ANULAR SUS PASES -->
+                                        <form action="{{ url_for('anular_pases_vendedor', vendedor_id=v.id) }}" method="POST" class="d-inline" onsubmit="return confirm('¿Estás seguro de inhabilitar a este vendedor y anular TODOS sus pases del evento actual?');">
+                                            <button type="submit" class="btn btn-outline-danger btn-sm py-0 px-2" title="Inhabilitar y Anular Pases">🚫 Bloquear</button>
+                                        </form>
+                                    {% else %}
+                                        <!-- SI ESTÁ INHABILITADO: REACTIVAR CUENTA -->
+                                        <form action="{{ url_for('reactivar_vendedor', vendedor_id=v.id) }}" method="POST" class="d-inline">
+                                            <button type="submit" class="btn btn-outline-success btn-sm py-0 px-2" title="Reactivar Vendedor">✅ Reactivar</button>
+                                        </form>
+                                    {% endif %}
+
+                                    {% if v.id != session.get('usuario_id') %}
+                                        <a href="/admin/usuario/eliminar/{{ v.id }}" class="btn btn-danger btn-sm py-0 px-2" onclick="return confirm('¿Seguro que deseas eliminar a este usuario?')" title="Eliminar Usuario">❌</a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="5" class="text-center text-white py-3">No hay usuarios registrados.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
-    <!-- TABLA GLOBAL DE PASES CON FILTRO DE EVENTO -->
+    <!-- TABLA GLOBAL DE PASES CON FILTRO DE EVENTO (COLAPSABLE POR DEFECTO) -->
     <div class="card card-casino p-3">
-        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-            <h5 class="text-gold mb-0">🎟️ Control General de Pases Emitidos</h5>
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div class="d-flex align-items-center gap-2 cursor-pointer flex-grow-1" data-bs-toggle="collapse" data-bs-target="#collapsePases" aria-expanded="false" aria-controls="collapsePases">
+                <h5 class="text-gold mb-0">🎟️ Control General de Pases Emitidos</h5>
+                <button type="button" class="btn btn-sm btn-outline-warning fw-bold ms-auto">Desplegar / Ocultar</button>
+            </div>
+
             <form method="GET" action="/admin/dashboard" class="d-flex gap-2">
                 <select name="evento_id" class="form-select form-select-sm bg-dark text-white border-warning" onchange="this.form.submit()">
                     <option value="">-- Filtrar por Evento --</option>
@@ -153,57 +164,59 @@
             </form>
         </div>
 
-        <div class="table-responsive">
-            <table class="table table-dark table-striped table-sm align-middle mb-0">
-                <thead>
-                    <tr>
-                        <th>Evento</th>
-                        <th>Vendedor RRPP</th>
-                        <th>Titular Ticket</th>
-                        <th>WhatsApp / DNI</th>
-                        <th>Ingresos</th>
-                        <th>Código QR</th>
-                        <th>Tipo / Estado</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for t in tickets %}
-                    <tr>
-                        <td><small class="text-info">{{ t.evento.nombre if t.evento else 'S/E' }}</small></td>
-                        <td><span class="text-gold fw-bold">{{ t.vendedor.nombre_completo }}</span></td>
-                        <td>
-                            <strong>{{ t.titular_nombre }}</strong>
-                            {% if t.es_cortesia %}
-                                <br><span class="badge bg-warning text-dark" style="font-size: 0.65rem;">✨ CORTESÍA VIP</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {{ t.titular_dni }}<br>
-                            <small class="text-white">{{ t.titular_whatsapp }}</small>
-                        </td>
-                        <td>
-                            <span class="badge bg-secondary">{{ t.entradas_usadas }} / {{ t.total_entradas }} personas</span>
-                        </td>
-                        <td><code>{{ t.codigo_qr }}</code></td>
-                        <td>
-                            {% if t.estado == 'anulado' %}
-                                <span class="badge bg-danger">🚫 ANULADO</span>
-                            {% elif t.estado == 'vencido' %}
-                                <span class="badge bg-danger">Vencido</span>
-                            {% elif t.estado == 'pendiente' %}
-                                <span class="badge bg-secondary">Pendiente</span>
-                            {% elif t.estado == 'parcial' %}
-                                <span class="badge bg-warning text-dark">Parcial</span>
-                            {% else %}
-                                <span class="badge bg-success">Canjeado</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr><td colspan="7" class="text-center text-white py-3">No hay pases registrados para el evento seleccionado.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <div class="collapse mt-3" id="collapsePases">
+            <div class="table-responsive">
+                <table class="table table-dark table-striped table-sm align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Evento</th>
+                            <th>Vendedor RRPP</th>
+                            <th>Titular Ticket</th>
+                            <th>WhatsApp / DNI</th>
+                            <th>Ingresos</th>
+                            <th>Código QR</th>
+                            <th>Tipo / Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for t in tickets %}
+                        <tr>
+                            <td><small class="text-info">{{ t.evento.nombre if t.evento else 'S/E' }}</small></td>
+                            <td><span class="text-gold fw-bold">{{ t.vendedor.nombre_completo }}</span></td>
+                            <td>
+                                <strong>{{ t.titular_nombre }}</strong>
+                                {% if t.es_cortesia %}
+                                    <br><span class="badge bg-warning text-dark" style="font-size: 0.65rem;">✨ CORTESÍA VIP</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {{ t.titular_dni }}<br>
+                                <small class="text-white">{{ t.titular_whatsapp }}</small>
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary">{{ t.entradas_usadas }} / {{ t.total_entradas }} personas</span>
+                            </td>
+                            <td><code>{{ t.codigo_qr }}</code></td>
+                            <td>
+                                {% if t.estado == 'anulado' %}
+                                    <span class="badge bg-danger">🚫 ANULADO</span>
+                                {% elif t.estado == 'vencido' %}
+                                    <span class="badge bg-danger">Vencido</span>
+                                {% elif t.estado == 'pendiente' %}
+                                    <span class="badge bg-secondary">Pendiente</span>
+                                {% elif t.estado == 'parcial' %}
+                                    <span class="badge bg-warning text-dark">Parcial</span>
+                                {% else %}
+                                    <span class="badge bg-success">Canjeado</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="7" class="text-center text-white py-3">No hay pases registrados para el evento seleccionado.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 </div>
