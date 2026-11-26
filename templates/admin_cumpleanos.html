@@ -139,12 +139,22 @@
 
     <!-- 3. Listado & Buscador de Cumpleañeros -->
     <div class="card card-admin p-3 mb-4">
-      <form method="GET" action="{{ url_for('admin_cumpleanos') }}" class="row g-2 align-items-center">
-        <div class="col-12 col-md-6 col-lg-5">
+      <form id="formFiltroCumpleanos" method="GET" action="{{ url_for('admin_cumpleanos') }}" class="row g-2 align-items-center">
+        <div class="col-12 col-md-4 col-lg-3">
+          <select id="filtroEvento" name="evento_id" class="form-select">
+            <option value="todos" {% if evento_id_filtro is none %}selected{% endif %}>Todos los eventos</option>
+            {% for ev in eventos %}
+              <option value="{{ ev.id }}" {% if evento_id_filtro == ev.id %}selected{% endif %}>
+                #{{ ev.id }} — {{ ev.nombre }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-12 col-md-4 col-lg-4">
           <input type="text" class="form-control" name="q" value="{{ q }}" placeholder="Buscar por Nombre, DNI o Código (CUMP-)..." />
         </div>
-        <div class="col-12 col-md-4 col-lg-3">
-          <select name="estado" class="form-select">
+        <div class="col-12 col-md-2 col-lg-3">
+          <select id="filtroEstado" name="estado" class="form-select">
             <option value="todos" {% if filtro_estado == 'todos' %}selected{% endif %}>Todos los registros</option>
             <option value="vigentes" {% if filtro_estado == 'vigentes' %}selected{% endif %}>QRs Vigentes</option>
             <option value="ingresaron" {% if filtro_estado == 'ingresaron' %}selected{% endif %}>Cumpleañeros Adentro</option>
@@ -263,6 +273,7 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="{{ url_for('static', filename='js/admin_cumpleanos.js') }}"></script>
   <script>
     function copiarLinkRegistro() {
       const el = document.getElementById('linkRegistroActual');

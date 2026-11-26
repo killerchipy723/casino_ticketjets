@@ -17,4 +17,19 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
   });
+
+  const formFiltro = document.getElementById('formFiltroCumpleanos');
+  const combosFiltro = document.querySelectorAll('#filtroEvento, #filtroEstado');
+
+  if (formFiltro && combosFiltro.length > 0) {
+    combosFiltro.forEach((combo) => {
+      combo.addEventListener('change', () => {
+        if (typeof formFiltro.requestSubmit === 'function') {
+          formFiltro.requestSubmit();
+        } else {
+          formFiltro.submit();
+        }
+      });
+    });
+  }
 });

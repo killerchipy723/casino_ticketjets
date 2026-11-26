@@ -913,19 +913,25 @@ def registrar_rutas(app):
         return redirect(url_for('ver_tarjeta_fidelizacion', dni=cliente.dni))
 
     # --------------------------- RUTA PARA CUMPLEAÑEROS -------------------------------------------
-    @app.route('/admin/cumpleanos', methods=['GET', 'POST'])   
+    @app.route('/admin/cumpleanos', methods=['GET', 'POST'])
     def admin_cumpleanos():
         # 1. Manejo del formulario de Configuración
         if request.method == 'POST':
             config_id = request.form.get('config_id')
             config = CumpleanosConfig.query.get(config_id) if config_id else CumpleanosConfig()
 
-            config.titulo = request.form.get('titulo', 'Beneficio Cumpleaños')
+            if hasattr(config, 'titulo'):
+                config.titulo = request.form.get('titulo', 'Beneficio Cumpleaños')
             config.limite_amigos = int(request.form.get('limite_amigos', 5))
             config.activo = 'activo' in request.form
 
             evento_id_str = (request.form.get('evento_id') or '').strip()
-            config.evento_id = int(evento_id_str) if evento_id_str.isdigit() else None
+            if evento_id_str.isdigit():
+                config.evento_id = int(evento_id_str)
+            elif not config.evento_id:
+                ev_actual = Evento.query.filter_by(es_evento_actual=True, estado='activo').first()
+                if ev_actual:
+                    config.evento_id = ev_actual.id
 
             # Rango de fechas habilitadas (Mes/Día)
             ini_m = int(request.form.get('ini_mes', 1))
@@ -936,11 +942,10 @@ def registrar_rutas(app):
             config.fecha_inicio_cumple = date(2024, ini_m, ini_d)
             config.fecha_fin_cumple = date(2024, fin_m, fin_d)
 
-            # Vencimiento con Timezone Argentina
+            # Vencimiento normalizado en hora de Argentina (naive para MySQL DATETIME)
             vence_str = request.form.get('vence_el')
             if vence_str:
-                dt_naive = datetime.strptime(vence_str, '%Y-%m-%dT%H:%M')
-                config.vence_el = dt_naive.replace(tzinfo=ZoneInfo("America/Argentina/Buenos_Aires"))
+                config.vence_el = datetime.strptime(vence_str, '%Y-%m-%dT%H:%M')
 
             db.session.add(config)
             db.session.commit()
@@ -949,26 +954,40 @@ def registrar_rutas(app):
 
         # 2. Cargar Configuración Actual y Eventos
         eventos = Evento.query.order_by(Evento.id.desc()).all()
+        evento_actual = Evento.query.filter_by(es_evento_actual=True, estado='activo').first()
+
         config = CumpleanosConfig.query.order_by(CumpleanosConfig.id.desc()).first()
         if not config:
-            evento_actual = Evento.query.filter_by(es_evento_actual=True, estado='activo').first()
             config = CumpleanosConfig(
-                evento_id=evento_actual.id if evento_actual else None,
-                titulo="Beneficio Cumpleaños ANANA",
+                evento_id=evento_actual.id if evento_actual else 1,
                 limite_amigos=5,
                 fecha_inicio_cumple=date(2024, 1, 1),
                 fecha_fin_cumple=date(2024, 12, 31),
-                vence_el=datetime.now(ZoneInfo("America/Argentina/Buenos_Aires")),
+                vence_el=ahora_argentina(),
                 activo=True
             )
+            if hasattr(config, 'titulo'):
+                config.titulo = "Beneficio Cumpleaños ANANA"
             db.session.add(config)
             db.session.commit()
 
-        # 3. Listado de Registros & Métricas
+        # 3. Filtro por Evento (por defecto el evento actual; puede elegirse otro o 'todos')
         q = request.args.get('q', '').strip()
         filtro_estado = request.args.get('estado', 'todos')
+        evento_param = request.args.get('evento_id', '').strip()
+
+        if evento_param == 'todos':
+            evento_id_filtro = None
+        elif evento_param.isdigit():
+            evento_id_filtro = int(evento_param)
+        else:
+            evento_id_filtro = evento_actual.id if evento_actual else (config.evento_id if config else None)
 
         query = CumpleanosRegistro.query
+
+        if evento_id_filtro is not None and hasattr(CumpleanosRegistro, 'evento_id'):
+            query = query.filter(CumpleanosRegistro.evento_id == evento_id_filtro)
+
         if q:
             fmt = f"%{q}%"
             query = query.filter(
@@ -980,11 +999,11 @@ def registrar_rutas(app):
             )
 
         registros_raw = query.order_by(CumpleanosRegistro.creado_en.desc()).all()
-        ahora_ar = datetime.now(ZoneInfo("America/Argentina/Buenos_Aires"))
+        ahora_ar = ahora_argentina()
 
         registros = []
         totales = {
-            'total': len(registros_raw),
+            'total': 0,
             'ingresaron': 0,
             'pendientes': 0,
             'amigos_total': 0,
@@ -994,22 +1013,14 @@ def registrar_rutas(app):
         for reg in registros_raw:
             reg_config = CumpleanosConfig.query.get(reg.config_id)
             es_valido = False
-            if reg_config:
+            if reg_config and reg_config.vence_el:
                 vence = reg_config.vence_el
-                if vence.tzinfo is None:
-                    vence = vence.replace(tzinfo=ZoneInfo("America/Argentina/Buenos_Aires"))
-                es_valido = reg_config.activo and (ahora_ar <= vence)
+                if vence.tzinfo is not None:
+                    vence = vence.astimezone(TZ_AR).replace(tzinfo=None)
+                es_valido = bool(reg_config.activo) and (ahora_ar <= vence)
 
             amigos_count = len(reg.amigos)
             amigos_ingresados = sum(1 for a in reg.amigos if a.ingresado)
-
-            totales['amigos_total'] += amigos_count
-            totales['amigos_ingresaron'] += amigos_ingresados
-
-            if reg.cumpleaniero_ingreso:
-                totales['ingresaron'] += 1
-            else:
-                totales['pendientes'] += 1
 
             incluir = True
             if filtro_estado == 'ingresaron' and not reg.cumpleaniero_ingreso:
@@ -1020,6 +1031,14 @@ def registrar_rutas(app):
                 incluir = False
 
             if incluir:
+                totales['total'] += 1
+                totales['amigos_total'] += amigos_count
+                totales['amigos_ingresaron'] += amigos_ingresados
+                if reg.cumpleaniero_ingreso:
+                    totales['ingresaron'] += 1
+                else:
+                    totales['pendientes'] += 1
+
                 registros.append({
                     'registro': reg,
                     'config': reg_config,
@@ -1032,6 +1051,8 @@ def registrar_rutas(app):
             'admin_cumpleanos.html',
             config=config,
             eventos=eventos,
+            evento_actual=evento_actual,
+            evento_id_filtro=evento_id_filtro,
             registros=registros,
             totales=totales,
             q=q,
